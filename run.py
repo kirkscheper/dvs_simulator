@@ -42,7 +42,6 @@ ventralFlow = np.zeros((int(numSegments * 50000), 4))
 print "\n--------------------------------------\n TRAJECTORY GENERATION"
 
 # starting point of the trajectory
-ventralFlow[0,:] = [0, 0.000000, 0.000000, 0.000000]
 traj[0,:] 		 = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
 while True:
 	entry = raw_input("\n[ORIGIN] -> The origin is at [0, 0, 0.5], would you like to change it? [y/n] ")
@@ -119,10 +118,13 @@ for sgm in xrange(0, numSegments):
 									 	traj[i,7] = traj[i-1, 7]
 
 								 		# store groundtruth information
-								 		ventralFlow[i,0] = ventralFlow[i-1, 0] + 1
-								 		ventralFlow[i,1] = deltaX * 1000 / traj[i,3] # vx
-								 		ventralFlow[i,2] = deltaY * 1000 / traj[i,3] # vy
-								 		ventralFlow[i,3] = deltaZ * 1000 / traj[i,3] # vz
+								 		if i == 1:
+								 			ventralFlow[i-1,0] = 1
+							 			else:
+							 				ventralFlow[i-1,0] = ventralFlow[i-2,0] + 1
+								 		ventralFlow[i-1,1] = deltaX * 1000 / traj[i,3] # vx
+								 		ventralFlow[i-1,2] = deltaY * 1000 / traj[i,3] # vy
+								 		ventralFlow[i-1,3] = deltaZ * 1000 / traj[i,3] # vz
 
 								 	cntRow += t_
 									break
@@ -137,7 +139,6 @@ for sgm in xrange(0, numSegments):
 			break
 		else:
 			print "Try again."
-
 
 # save the file where it should be
 with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt", "w") as text_file:
@@ -157,14 +158,17 @@ os.system("roslaunch dvs_simulator_py custom_simulate.launch")
 
 print "\n--------------------------------------\n GENERATE .AEDAT AND IMAGES"
 
+# store last millisecond of the simulation
+lastTime = traj[cntRow - 1,0]
+
 # check if the user wants to accumulate events
 while True:
 	entry = raw_input("\nDo you want to record images with accumulated events? [y/n] ")
 	if entry == 'y' or entry == 'Y':
 		accumFlag = True
 		while True:
-			entry = raw_input("Enter the time window for the accumulation: [1, Inf] (us) ")
-			if int(entry) < 1:
+			entry = raw_input("Enter the time window for the accumulation: [150, " + str(int(lastTime*50)) + "] (us) ")
+			if int(entry) < 150 or int(entry) > lastTime*50:
 				print "Try again."
 			else:
 				accumTime = int(entry)
@@ -229,15 +233,22 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         # accumulate events in an image
         if accumFlag:
 			if ts / accumTime == imgCnt:
-				if accumEvents[e.y, e.x] == 0:
-					accumEvents[e.y, e.x] = 255
+				if accumEvents[-e.y, -e.x] == 0:
+					accumEvents[-e.y, -e.x] = 255
 			else:
-				img = Image.fromarray(accumEvents)
-				img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
+				imgCnt += 1
+				if imgCnt >= 10:
+					img = Image.fromarray(accumEvents)
+					img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
 				accumEvents = np.zeros((128, 128), dtype=np.uint8)
 				accumEvents[0, 0] = 0
-				accumEvents[e.y, e.x] = 255
-				imgCnt += 1
+				accumEvents[-e.y, -e.x] = 255
+
+# store the last image
+if accumFlag:
+	imgCnt += 1
+	img = Image.fromarray(accumEvents)
+	img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
 
 # check if the user wants to save images using different time windows
 if accumFlag:
@@ -246,8 +257,8 @@ if accumFlag:
 		entry = raw_input("\nDo you want to record images with a different time window? [y/n] ")
 		if entry == 'y' or entry == 'Y':
 			while True:
-				entry = raw_input("Enter the time window for the accumulation: [1, Inf] (us) ")
-				if int(entry) < 1:
+				entry = raw_input("Enter the time window for the accumulation: [150, " + str(int(lastTime*50)) + "] (us) ")
+				if int(entry) < 150 or int(entry) > lastTime*50:
 					print "Try again."
 				elif int(entry) in accumTimeVector:
 					print "Try again. Same time window as before."
@@ -270,15 +281,22 @@ if accumFlag:
 
 							# accumulate events in an image
 							if ts / accumTime == imgCnt:
-								if accumEvents[e.y, e.x] == 0:
-									accumEvents[e.y, e.x] = 255
+								if accumEvents[-e.y, -e.x] == 0:
+									accumEvents[-e.y, -e.x] = 255
 							else:
-								img = Image.fromarray(accumEvents)
-								img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
+								imgCnt += 1
+								if imgCnt >= 10:
+									img = Image.fromarray(accumEvents)
+									img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
 								accumEvents = np.zeros((128, 128), dtype=np.uint8)
 								accumEvents[0, 0] = 0
-								accumEvents[e.y, e.x] = 255
-								imgCnt += 1
+								accumEvents[-e.y, -e.x] = 255
+
+					# store the last image
+					imgCnt += 1
+					img = Image.fromarray(accumEvents)
+					img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
+
 					break
 		elif entry == 'n' or entry == 'N':
 			break
@@ -294,8 +312,10 @@ if not os.path.exists('aedat/GT/'):
 # save the file where it should be
 GTFile = bagSplit[0] + '.txt'
 with open("aedat/GT/" + GTFile, "w") as text_file:
-	for i in xrange(0,cntRow):
+	for i in xrange(0,cntRow - 1):
  		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], - ventralFlow[i, 3]))
 
 # generate the ground truth for the set of images generated
-# TODO
+# if accumFlag:
+# 	for accumTime in accumTimeVector:
+# 		pass
