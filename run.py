@@ -5,6 +5,9 @@ run.py is a Python script that generates a trajectory based on a set of
 straight segments for the rpg_davis_simulator [1], rederizes the scene 
 using Blender, generates the DVS events, and converts the .rosbag output 
 file into a 2.0 .aedat file [2] that can be processed by the software jAER [3].
+Furthermore, it can store .png images with the accumulated events (polarity
+not included) in a specified time window. Ground truth for these images is also
+provided.
 
 NOTE: Only works when rpg_davis_simulator [1] has been successfully installed.
 
