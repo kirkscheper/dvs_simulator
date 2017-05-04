@@ -32,12 +32,14 @@ while True:
 		print "Try again."
 
 # allocate memory for the trajectory array
-traj = np.zeros((int(numSegments * 50000), 8))
+traj 		= np.zeros((int(numSegments * 50000), 8))
+ventralFlow = np.zeros((int(numSegments * 50000), 4))
 
 print "\n--------------------------------------\n TRAJECTORY GENERATION"
 
 # starting point of the trajectory
-traj[0,:] = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
+ventralFlow[0,:] = [0, 0.000000, 0.000000, 0.000000]
+traj[0,:] 		 = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
 while True:
 	entry = raw_input("\n[ORIGIN] -> The origin is at [0, 0, 0.5], would you like to change it? [y/n] ")
 	if entry == 'y' or entry == 'Y':
@@ -101,6 +103,8 @@ for sgm in xrange(0, numSegments):
 									deltaZ = (z_ - traj[cntRow, 3]) / t_
 									
 									for i in xrange(cntRow + 1, t_ + cntRow + 1):
+
+										# trajectory information
 										traj[i,0] = traj[i-1, 0] + 1
 										traj[i,1] = traj[i-1, 1] + deltaX
 									 	traj[i,2] = traj[i-1, 2] + deltaY
@@ -109,6 +113,12 @@ for sgm in xrange(0, numSegments):
 									 	traj[i,5] = traj[i-1, 5]
 									 	traj[i,6] = traj[i-1, 6]
 									 	traj[i,7] = traj[i-1, 7]
+
+								 		# store groundtruth information
+								 		ventralFlow[i,0] = ventralFlow[i-1, 0] + 1
+								 		ventralFlow[i,1] = deltaX * 1000 / traj[i,3] # vx
+								 		ventralFlow[i,2] = deltaY * 1000 / traj[i,3] # vy
+								 		ventralFlow[i,3] = deltaZ * 1000 / traj[i,3] # vz
 
 								 	cntRow += t_
 									break
@@ -177,3 +187,9 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         file.write("%s" % struct.pack('>I', int(ts)))
 
 bag.close()
+
+# save the file where it should be
+GTFile = bagSplit[0] + '.txt'
+with open("aedat/GT/" + GTFile, "w") as text_file:
+	for i in xrange(0,cntRow):
+ 		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], ventralFlow[i, 3]))
