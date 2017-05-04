@@ -23,6 +23,7 @@ import os
 import glob
 import rosbag
 import struct
+from math import floor
 import numpy as np
 from PIL import Image
 
@@ -316,6 +317,38 @@ with open("aedat/GT/" + GTFile, "w") as text_file:
  		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], - ventralFlow[i, 3]))
 
 # generate the ground truth for the set of images generated
-# if accumFlag:
-# 	for accumTime in accumTimeVector:
-# 		pass
+if accumFlag:
+	for accumTime in accumTimeVector:
+		
+		cnt = 0
+		readFlag = False
+		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+		with open(imgDir + 'GT.txt', "w") as text_file:
+
+			while True:
+
+				# create the name of the file
+				file = bagSplit[0] + '_' + str(accumTime) + 'us_' + str(cnt) + '.png'
+
+				# check wether it is included in the directory
+				if os.path.isfile(imgDir + file):
+
+					# update the flag
+					readFlag  = True
+					time = cnt * accumTime / 1000.0
+
+					# check the values of the ground truth file
+					under = int(floor(time))
+
+					vx = (ventralFlow[under-1,1] * (ventralFlow[under,0] - time) + ventralFlow[under,1] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vy = (ventralFlow[under-1,2] * (ventralFlow[under,0] - time) + ventralFlow[under,2] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vz = - (ventralFlow[under-1,3] * (ventralFlow[under,0] - time) + ventralFlow[under,3] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+
+					text_file.write("%i %.6f %.6f %.6f\n" % (cnt, vx, vy, vz))
+
+				# if the file is not in the directory after reading some files, break
+				elif readFlag == True:
+					break
+
+				# update the counter
+				cnt += 1
