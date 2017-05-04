@@ -1,0 +1,11 @@
+*.aedat
+*.bag
+*.blend1
+build/
+devel/
+install/
+logs/
+.catkin_tools/
+.catkin_workspace
+src/rpg_davis_simulator/datasets/full_datasets
+src/rpg_davis_simulator/datasets/rosbags
