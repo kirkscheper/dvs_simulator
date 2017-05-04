@@ -21,6 +21,7 @@ import glob
 import rosbag
 import struct
 import numpy as np
+from PIL import Image
 
 # divide the trajectory in a set of straight segments
 while True:
@@ -151,18 +152,54 @@ os.system("roslaunch dvs_simulator_py custom_render.launch")
 # simulate the scene
 os.system("roslaunch dvs_simulator_py custom_simulate.launch")
 
-print "\n--------------------------------------\n GENERATE .AEDAT"
+print "\n--------------------------------------\n GENERATE .AEDAT AND IMAGES"
 
+# check if the user wants to accumulate events
+while True:
+	entry = raw_input("\nDo you want to record images with accumulated events? [y/n] ")
+	if entry == 'y' or entry == 'Y':
+		accumFlag = True
+		while True:
+			entry = raw_input("Enter the time window for the accumulation: [1, Inf] (us) ")
+			if int(entry) < 1:
+				print "Try again."
+			else:
+				accumTime = int(entry)
+				break
+		break
+	elif entry == 'n' or entry == 'N':
+		accumFlag = False
+		break
+	else:
+		print "Try again."
+
+# get the current rosbag file
 curDir = os.getcwd()
 os.chdir(os.getcwd() + '/src/rpg_davis_simulator/datasets/rosbags/')
 bagFile = max(glob.glob('*.bag'), key=os.path.getctime)
 bagFilePath = os.getcwd() + '/' + bagFile
 os.chdir(curDir)
 
+# split the name and create the aedat filename
 bagSplit = bagFile.split('.')
 aedatFile = bagSplit[0] + '.aedat'
 
-print "\nFormatting: .rosbag -> .aedat (This should take a couple of minutes)\n"
+# check directories for image storage
+if accumFlag:
+	if not os.path.exists('aedat/images/'):
+		os.makedirs('aedat/images/')
+	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+	accumEvents = np.zeros((128, 128), dtype=np.uint8)
+	accumEvents[0, 0] = 0
+	imgCnt = 0
+	if not os.path.exists(imgDir):
+		os.makedirs(imgDir)
+
+print "\nFormatting: .rosbag -> .aedat (This should take a couple of minutes)"
+
+# check for the aedat directory
+if not os.path.exists('aedat/'):
+    os.makedirs('aedat/')
 
 # open the file and write the headers
 file = open("aedat/" + aedatFile, "w")
@@ -186,10 +223,76 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         file.write("%s" % struct.pack('>I', int(address, 2)))
         file.write("%s" % struct.pack('>I', int(ts)))
 
+        # accumulate events in an image
+        if accumFlag:
+			if ts / accumTime == imgCnt:
+				if accumEvents[e.y, e.x] == 0:
+					accumEvents[e.y, e.x] = 255
+			else:
+				img = Image.fromarray(accumEvents)
+				img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
+				accumEvents = np.zeros((128, 128), dtype=np.uint8)
+				accumEvents[0, 0] = 0
+				accumEvents[e.y, e.x] = 255
+				imgCnt += 1
+
+# check if the user wants to save images using different time windows
+if accumFlag:
+	accumTimeVector = [accumTime]
+	while True:
+		entry = raw_input("\nDo you want to record images with a different time window? [y/n] ")
+		if entry == 'y' or entry == 'Y':
+			while True:
+				entry = raw_input("Enter the time window for the accumulation: [1, Inf] (us) ")
+				if int(entry) < 1:
+					print "Try again."
+				elif int(entry) in accumTimeVector:
+					print "Try again. Same time window as before."
+				else:
+					accumTime = int(entry)
+					accumTimeVector.append(accumTime)
+					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
+					imgCnt = 0
+					if not os.path.exists(imgDir):
+						os.makedirs(imgDir)
+
+					for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+					    for e in msg.events:
+
+							ts = int(e.ts.to_nsec() / 1000.0)
+							x = '{0:07b}'.format(e.x)
+							y = '{0:07b}'.format(e.y)
+
+							# accumulate events in an image
+							if ts / accumTime == imgCnt:
+								if accumEvents[e.y, e.x] == 0:
+									accumEvents[e.y, e.x] = 255
+							else:
+								img = Image.fromarray(accumEvents)
+								img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_' + str(imgCnt) + '.png')
+								accumEvents = np.zeros((128, 128), dtype=np.uint8)
+								accumEvents[0, 0] = 0
+								accumEvents[e.y, e.x] = 255
+								imgCnt += 1
+					break
+		elif entry == 'n' or entry == 'N':
+			break
+		else:
+			print "Try again."
+
 bag.close()
+
+# check for the GT directory inside aedat
+if not os.path.exists('aedat/GT/'):
+    os.makedirs('aedat/GT/')
 
 # save the file where it should be
 GTFile = bagSplit[0] + '.txt'
 with open("aedat/GT/" + GTFile, "w") as text_file:
 	for i in xrange(0,cntRow):
- 		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], ventralFlow[i, 3]))
+ 		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], - ventralFlow[i, 3]))
+
+# generate the ground truth for the set of images generated
+# TODO
