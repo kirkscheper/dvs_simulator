@@ -7,7 +7,7 @@ generated using the rpg_davis_simulator [1] and the run.py script after it.
 [1] rpg_davis_simulator: https://github.com/uzh-rpg/rpg_davis_simulator
 
 Author: F. Paredes Valles
-Created: 04-05-2017
+Created: 05-05-2017
 """
 
 import os
