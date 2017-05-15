@@ -42,10 +42,13 @@ traj 		= np.zeros((int(numSegments * 50000), 8))
 ventralFlow = np.zeros((int(numSegments * 50000), 4))
 directions  = np.zeros((int(numSegments * 50000), 7))
 
+# the maximum time to be recorded is 50 seconds
+timePerSegment = (50000 / numSegments) * 10**(-3)
+
 print "\n--------------------------------------\n TRAJECTORY GENERATION"
 
 # starting point of the trajectory
-traj[0,:] 		 = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
+traj[0,:] = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
 while True:
 	entry = raw_input("\n[ORIGIN] -> The origin is at [0, 0, 0.5], would you like to change it? [y/n] ")
 	if entry == 'y' or entry == 'Y':
@@ -99,8 +102,8 @@ for sgm in xrange(0, numSegments):
 						if float(entry) >= 0.5 and float(entry) <= 2.0:
 							z_ = float(entry)
 							while True:
-								entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> t: [0.1,5.0] ")
-								if float(entry) >= 0.1 and float(entry) <= 5.0:
+								entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> t: [0.1," + str(timePerSegment) + "] ")
+								if float(entry) >= 0.1 and float(entry) <= timePerSegment:
 									t_ = int(float(entry) * 1000)
 
 									# compute the trajectory for this segment
