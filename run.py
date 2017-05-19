@@ -126,14 +126,14 @@ for sgm in xrange(0, numSegments):
 								 		# ventral flow information
 								 		if i == 1: ventralFlow[i-1,0] = 1
 							 			else: ventralFlow[i-1,0] = ventralFlow[i-2,0] + 1
-								 		ventralFlow[i-1,1] = deltaX * 1000 / traj[i,3] # vx
-								 		ventralFlow[i-1,2] = - deltaY * 1000 / traj[i,3] # vy
+								 		ventralFlow[i-1,1] = - deltaX * 1000 / traj[i,3] # vx
+								 		ventralFlow[i-1,2] = deltaY * 1000 / traj[i,3] # vy
 								 		ventralFlow[i-1,3] = - deltaZ * 1000 / traj[i,3] # vz
 
 								 		# percentage of movement in a specific orientation
 								 		modVelocity = fabs(deltaX * 1000) + fabs(deltaY * 1000) + fabs(deltaZ * 1000)
-								 		percX = deltaX * 1000 / modVelocity
-								 		percY = - deltaY * 1000 / modVelocity
+								 		percX = - deltaX * 1000 / modVelocity
+								 		percY = deltaY * 1000 / modVelocity
 								 		percZ = - deltaZ * 1000 / modVelocity
 
 								 		if i == 1: directions[i-1,0] = 1
@@ -166,14 +166,33 @@ with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt
 
 print "\n--------------------------------------\n SCENE RENDERING AND SIMULATION"
 
-# make sure that the .bash file is in the source of ubuntu
-os.system("source " + os.getcwd() + "/devel/setup.bash")
+while True:
+	entry = raw_input("\nDo you want to use the ckeckerboard scene? [y/n] ")
+	if entry == 'y' or entry == 'Y':
+		# render and simulate the scene
+		os.system("roslaunch dvs_simulator_py checkerboard_render.launch")
+		os.system("roslaunch dvs_simulator_py checkerboard_simulate.launch")
+		break
+	elif entry == 'n' or entry == 'N':
+			
+		while True:
+			entry = raw_input("\nDo you want to use the roadmap scene? [y/n] ")
+			if entry == 'y' or entry == 'Y':
+				# render and simulate the scene
+				os.system("roslaunch dvs_simulator_py custom_render.launch")
+				os.system("roslaunch dvs_simulator_py custom_simulate.launch")
+				break
 
-# render the scene
-os.system("roslaunch dvs_simulator_py custom_render.launch")
+			elif entry == 'n' or entry == 'N':
+				print "End of the script."
+				sys.exit()
+				break
 
-# simulate the scene
-os.system("roslaunch dvs_simulator_py custom_simulate.launch")
+			else:
+				print "Try again."
+		break
+	else:
+		print "Try again."
 
 print "\n--------------------------------------\n GENERATE .AEDAT AND IMAGES"
 
@@ -258,7 +277,7 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
 				imgCnt += 1
 				if imgCnt >= 10:
 					img = Image.fromarray(accumEvents)
-					img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_NP_' + str(imgCnt) + '.png')
+					img.save(imgDir + str(imgCnt - 10) + '.png')
 				accumEvents = np.zeros((128, 128), dtype=np.uint8)
 				accumEvents[0, 0] = 0
 				accumEvents[-e.y, -e.x] = 255
@@ -267,7 +286,7 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
 if accumFlag:
 	imgCnt += 1
 	img = Image.fromarray(accumEvents)
-	img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_NP_' + str(imgCnt) + '.png')
+	img.save(imgDir + str(imgCnt - 10) + '.png')
 
 # check if the user wants to save images using different time windows
 if accumFlag:
@@ -306,7 +325,7 @@ if accumFlag:
 								imgCnt += 1
 								if imgCnt >= 10:
 									img = Image.fromarray(accumEvents)
-									img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_NP_' + str(imgCnt) + '.png')
+									img.save(imgDir + str(imgCnt - 10) + '.png')
 								accumEvents = np.zeros((128, 128), dtype=np.uint8)
 								accumEvents[0, 0] = 0
 								accumEvents[-e.y, -e.x] = 255
@@ -314,7 +333,7 @@ if accumFlag:
 					# store the last image
 					imgCnt += 1
 					img = Image.fromarray(accumEvents)
-					img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_NP_' + str(imgCnt) + '.png')
+					img.save(imgDir + str(imgCnt - 10) + '.png')
 
 					break
 		elif entry == 'n' or entry == 'N':
@@ -346,7 +365,7 @@ if accumFlag:
 			while True:
 
 				# create the name of the file
-				file = bagSplit[0] + '_' + str(accumTime) + 'us_NP_' + str(cnt) + '.png'
+				file = str(cnt) + '.png'
 
 				# check wether it is included in the directory
 				if os.path.isfile(imgDir + file):
@@ -380,7 +399,7 @@ if accumFlag:
 			while True:
 
 				# create the name of the file
-				file = bagSplit[0] + '_' + str(accumTime) + 'us_NP_' + str(cnt) + '.png'
+				file = str(cnt) + '.png'
 
 				# check wether it is included in the directory
 				if os.path.isfile(imgDir + file):
@@ -461,7 +480,7 @@ if accumFlag:
 					imgCnt += 1
 					if imgCnt >= 10:
 						img = Image.fromarray(accumEvents)
-						img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_P_' + str(imgCnt) + '.png')
+						img.save(imgDir + str(imgCnt - 10) + '.png')
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					if p == '1':
@@ -473,7 +492,7 @@ if accumFlag:
 	if accumFlag:
 		imgCnt += 1
 		img = Image.fromarray(accumEvents)
-		img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_P_' + str(imgCnt) + '.png')
+		img.save(imgDir + str(imgCnt - 10) + '.png')
 
 if accumFlag:
 	accumTimeVector = [accumTime]
@@ -514,7 +533,7 @@ if accumFlag:
 								imgCnt += 1
 								if imgCnt >= 10:
 									img = Image.fromarray(accumEvents)
-									img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_P_' + str(imgCnt) + '.png')
+									img.save(imgDir + str(imgCnt - 10) + '.png')
 								accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 								accumEvents[0, 0, 0] = 0
 								if p == '1':
@@ -525,7 +544,7 @@ if accumFlag:
 					# store the last image
 					imgCnt += 1
 					img = Image.fromarray(accumEvents)
-					img.save(imgDir + bagSplit[0] + '_' + str(accumTime) + 'us' + '_P_' + str(imgCnt) + '.png')
+					img.save(imgDir + str(imgCnt - 10) + '.png')
 
 					break
 		elif entry == 'n' or entry == 'N':
@@ -547,7 +566,7 @@ if accumFlag:
 			while True:
 
 				# create the name of the file
-				file = bagSplit[0] + '_' + str(accumTime) + 'us_P_' + str(cnt) + '.png'
+				file = str(cnt) + '.png'
 
 				# check wether it is included in the directory
 				if os.path.isfile(imgDir + file):
@@ -581,7 +600,7 @@ if accumFlag:
 			while True:
 
 				# create the name of the file
-				file = bagSplit[0] + '_' + str(accumTime) + 'us_P_' + str(cnt) + '.png'
+				file = str(cnt) + '.png'
 
 				# check wether it is included in the directory
 				if os.path.isfile(imgDir + file):
