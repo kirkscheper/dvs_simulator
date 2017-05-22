@@ -40,12 +40,11 @@ while True:
 # allocate memory for the trajectory array
 traj 		= np.zeros((int(numSegments * 50000), 8))
 ventralFlow = np.zeros((int(numSegments * 50000), 4))
-directions  = np.zeros((int(numSegments * 50000), 7))
 
 # the maximum time to be recorded is 50 seconds
 timePerSegment = (50000 / numSegments) * 10**(-3)
 
-print "\n--------------------------------------\n TRAJECTORY GENERATION"
+print "\n--------------------------------------\n TRAJECTORY GENERATION (RELATIVE MOTION)"
 
 # starting point of the trajectory
 traj[0,:] = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
@@ -85,21 +84,28 @@ while True:
 	else:
 		print "Try again."
 
+# limits in each direction (change if bigger or smaller Blender scene)
+xHigh = 2
+xLow  = -2
+yHigh = 3.5
+yLow  = -3.5 
+zLow  = 0.1
+zHigh = 2.5
+
 # generate the desired trajectory
 cntRow = 0
 for sgm in xrange(0, numSegments):
 	while True:
-		print("\n[SEGMENT " + str(sgm + 1) + "] -> From: [" + str(traj[cntRow, 1]) + ", " + str(traj[cntRow, 2]) + ", " + str(traj[cntRow, 3]) + "], To: [x, y, z]")
-		entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> x: [-3.0,3.0] ")
-		if float(entry) >= -3.0 and float(entry) <= 3.0:
+		entry = raw_input("\n[SEGMENT " + str(sgm + 1) + "] -> x: [-" + str(traj[cntRow, 2] - xLow) + ", " + str(xHigh - traj[cntRow, 2]) + "] ")
+		if float(entry) >= -(traj[cntRow, 2] - xLow) and float(entry) <= (xHigh - traj[cntRow, 2]):
 			x_ = float(entry)
 			while True:
-				entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> y: [-1.5,1.5] ")
-				if float(entry) >= -1.5 and float(entry) <= 1.5:
+				entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> y: [-" + str(traj[cntRow, 1] - yLow) + ", " + str(yHigh - traj[cntRow, 1]) + "] ")
+				if float(entry) >= -(traj[cntRow, 1] - yLow) and float(entry) <= (yHigh - traj[cntRow, 1]):
 					y_ = float(entry)
 					while True:
-						entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> z: [0.5,2.5] ")
-						if float(entry) >= 0.5 and float(entry) <= 2.0:
+						entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> z: [-" + str(traj[cntRow, 3] - zLow) + ", " + str(zHigh - traj[cntRow, 3]) + "] ")
+						if float(entry) >= -(traj[cntRow, 3] - zLow) and float(entry) <= (zHigh - traj[cntRow, 3]):
 							z_ = float(entry)
 							while True:
 								entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> t: [0.1," + str(timePerSegment) + "] ")
@@ -107,9 +113,9 @@ for sgm in xrange(0, numSegments):
 									t_ = int(float(entry) * 1000)
 
 									# compute the trajectory for this segment
-									deltaX = (x_ - traj[cntRow, 1]) / t_
-									deltaY = (y_ - traj[cntRow, 2]) / t_
-									deltaZ = (z_ - traj[cntRow, 3]) / t_
+									deltaX = y_ / t_
+									deltaY = x_ / t_
+									deltaZ = z_ / t_
 									
 									for i in xrange(cntRow + 1, t_ + cntRow + 1):
 
@@ -126,24 +132,9 @@ for sgm in xrange(0, numSegments):
 								 		# ventral flow information
 								 		if i == 1: ventralFlow[i-1,0] = 1
 							 			else: ventralFlow[i-1,0] = ventralFlow[i-2,0] + 1
-								 		ventralFlow[i-1,1] = - deltaX * 1000 / traj[i,3] # vx
-								 		ventralFlow[i-1,2] = deltaY * 1000 / traj[i,3] # vy
-								 		ventralFlow[i-1,3] = - deltaZ * 1000 / traj[i,3] # vz
-
-								 		# percentage of movement in a specific orientation
-								 		modVelocity = fabs(deltaX * 1000) + fabs(deltaY * 1000) + fabs(deltaZ * 1000)
-								 		percX = - deltaX * 1000 / modVelocity
-								 		percY = deltaY * 1000 / modVelocity
-								 		percZ = - deltaZ * 1000 / modVelocity
-
-								 		if i == 1: directions[i-1,0] = 1
-							 			else: directions[i-1,0] = directions[i-2,0] + 1
-							 			if percX > 0: directions[i-1,1] = percX # left
-					 					else: directions[i-1,2] = - percX # right
-				 						if percY > 0: directions[i-1,3] = percY # forward
-			 							else: directions[i-1,4] = - percY # backward
-		 								if percZ > 0: directions[i-1,5] = percZ # down
-	 									else: directions[i-1,6] = - percZ # up
+								 		ventralFlow[i-1,1] = - deltaX * 1000 / traj[i,3] # wx
+								 		ventralFlow[i-1,2] = - deltaY * 1000 / traj[i,3] # wy
+								 		ventralFlow[i-1,3] = - 2 * deltaZ * 1000 / traj[i,3] # D
 
 								 	cntRow += t_
 									break
@@ -233,7 +224,7 @@ aedatFile = bagSplit[0] + '.aedat'
 if accumFlag:
 	if not os.path.exists('aedat/images/'):
 		os.makedirs('aedat/images/')
-	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NP/'
+	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
 	accumEvents = np.zeros((128, 128), dtype=np.uint8)
 	accumEvents[0, 0] = 0
 	imgCnt = 0
@@ -259,8 +250,8 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
     for e in msg.events:
 
         ts = int(e.ts.to_nsec() / 1000.0)
-        x = '{0:07b}'.format(e.x)
-        y = '{0:07b}'.format(e.y)
+        x = '{0:07b}'.format(128-e.x)
+        y = '{0:07b}'.format(128-e.y)
         p = '1' if e.polarity else '0'
         address = "0" + y + x + p
 
@@ -271,8 +262,8 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         # accumulate events in an image
         if accumFlag:
 			if ts / accumTime == imgCnt:
-				if accumEvents[-e.y, -e.x] == 0:
-					accumEvents[-e.y, -e.x] = 255
+				if accumEvents[e.y, e.x] == 0:
+					accumEvents[e.y, e.x] = 255
 			else:
 				imgCnt += 1
 				if imgCnt >= 10:
@@ -280,7 +271,7 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
 					img.save(imgDir + str(imgCnt - 10) + '.png')
 				accumEvents = np.zeros((128, 128), dtype=np.uint8)
 				accumEvents[0, 0] = 0
-				accumEvents[-e.y, -e.x] = 255
+				accumEvents[e.y, e.x] = 255
 
 # store the last image
 if accumFlag:
@@ -303,7 +294,7 @@ if accumFlag:
 				else:
 					accumTime = int(entry)
 					accumTimeVector.append(accumTime)
-					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NP/'
+					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
 					accumEvents = np.zeros((128, 128), dtype=np.uint8)
 					accumEvents[0, 0] = 0
 					imgCnt = 0
@@ -314,13 +305,11 @@ if accumFlag:
 					    for e in msg.events:
 
 							ts = int(e.ts.to_nsec() / 1000.0)
-							x = '{0:07b}'.format(e.x)
-							y = '{0:07b}'.format(e.y)
 
 							# accumulate events in an image
 							if ts / accumTime == imgCnt:
-								if accumEvents[-e.y, -e.x] == 0:
-									accumEvents[-e.y, -e.x] = 255
+								if accumEvents[e.y, e.x] == 0:
+									accumEvents[e.y, e.x] = 255
 							else:
 								imgCnt += 1
 								if imgCnt >= 10:
@@ -328,7 +317,7 @@ if accumFlag:
 									img.save(imgDir + str(imgCnt - 10) + '.png')
 								accumEvents = np.zeros((128, 128), dtype=np.uint8)
 								accumEvents[0, 0] = 0
-								accumEvents[-e.y, -e.x] = 255
+								accumEvents[e.y, e.x] = 255
 
 					# store the last image
 					imgCnt += 1
@@ -343,23 +332,13 @@ if accumFlag:
 
 bag.close()
 
-# check for the GT directory inside aedat
-if not os.path.exists('aedat/GT/'):
-    os.makedirs('aedat/GT/')
-
-# save the file where it should be
-GTFile = bagSplit[0] + '.txt'
-with open("aedat/GT/" + GTFile, "w") as text_file:
-	for i in xrange(0,cntRow - 1):
- 		text_file.write("%i %.6f %.6f %.6f\n" % (int(ventralFlow[i, 0]), ventralFlow[i, 1], ventralFlow[i, 2], ventralFlow[i, 3]))
-
 # generate the ground truth for the set of images generated
 if accumFlag:
 	for accumTime in accumTimeVector:
 		
 		cnt = 0
 		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NP/'
+		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
 		with open(imgDir + 'GT_flow.txt', "w") as text_file:
 
 			while True:
@@ -383,43 +362,6 @@ if accumFlag:
 
 					# write ventral flow
 					text_file.write("%i %.6f %.6f %.6f\n" % (cnt, vx, vy, vz))
-
-				# if the file is not in the directory after reading some files, break
-				elif readFlag == True:
-					break
-
-				# update the counter
-				cnt += 1
-
-		cnt = 0
-		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NP/'
-		with open(imgDir + 'GT_directions.txt', "w") as text_file:
-
-			while True:
-
-				# create the name of the file
-				file = str(cnt) + '.png'
-
-				# check wether it is included in the directory
-				if os.path.isfile(imgDir + file):
-
-					# update the flag
-					readFlag  = True
-					time = cnt * accumTime / 1000.0
-
-					# check the values of the ground truth file
-					under = int(floor(time))
-
-					dxP = (directions[under-1,1] * (directions[under,0] - time) + directions[under,1] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dxN = (directions[under-1,2] * (directions[under,0] - time) + directions[under,2] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dyP = (directions[under-1,3] * (directions[under,0] - time) + directions[under,3] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dyN = (directions[under-1,4] * (directions[under,0] - time) + directions[under,4] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dzP = (directions[under-1,5] * (directions[under,0] - time) + directions[under,5] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dzN = (directions[under-1,6] * (directions[under,0] - time) + directions[under,6] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-
-					# write ventral flow
-					text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f\n" % (cnt, dxP, dxN, dyP, dyN, dzP, dzN))
 
 				# if the file is not in the directory after reading some files, break
 				elif readFlag == True:
@@ -451,7 +393,7 @@ while True:
 if accumFlag:
 	if not os.path.exists('aedat/images/'):
 		os.makedirs('aedat/images/')
-	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_P/'
+	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
 	accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 	accumEvents[0, 0, 0] = 0
 	imgCnt = 0
@@ -463,18 +405,15 @@ if accumFlag:
 	    for e in msg.events:
 
 	        ts = int(e.ts.to_nsec() / 1000.0)
-	        x = '{0:07b}'.format(e.x)
-	        y = '{0:07b}'.format(e.y)
 	        p = '1' if e.polarity else '0'
-	        address = "0" + y + x + p
 
 	        # accumulate events in an image
 	        if accumFlag:
 				if ts / accumTime == imgCnt:
 					if p == '1':
-						accumEvents[-e.y, -e.x, 0] = 255
+						accumEvents[e.y, e.x, 0] = 255
 					else:
-						accumEvents[-e.y, -e.x, 1] = 255
+						accumEvents[e.y, e.x, 1] = 255
 						
 				else:
 					imgCnt += 1
@@ -484,9 +423,9 @@ if accumFlag:
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					if p == '1':
-						accumEvents[-e.y, -e.x, 0] = 255
+						accumEvents[e.y, e.x, 0] = 255
 					else:
-						accumEvents[-e.y, -e.x, 1] = 255
+						accumEvents[e.y, e.x, 1] = 255
 
 	# store the last image
 	if accumFlag:
@@ -508,7 +447,7 @@ if accumFlag:
 				else:
 					accumTime = int(entry)
 					accumTimeVector.append(accumTime)
-					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_P/'
+					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					imgCnt = 0
@@ -519,16 +458,14 @@ if accumFlag:
 					    for e in msg.events:
 
 							ts = int(e.ts.to_nsec() / 1000.0)
-							x = '{0:07b}'.format(e.x)
-							y = '{0:07b}'.format(e.y)
 							p = '1' if e.polarity else '0'
 
 							# accumulate events in an image
 							if ts / accumTime == imgCnt:
 								if p == '1':
-									accumEvents[-e.y, -e.x, 0] = 255
+									accumEvents[e.y, e.x, 0] = 255
 								else:
-									accumEvents[-e.y, -e.x, 1] = 255
+									accumEvents[e.y, e.x, 1] = 255
 							else:
 								imgCnt += 1
 								if imgCnt >= 10:
@@ -537,9 +474,9 @@ if accumFlag:
 								accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 								accumEvents[0, 0, 0] = 0
 								if p == '1':
-									accumEvents[-e.y, -e.x, 0] = 255
+									accumEvents[e.y, e.x, 0] = 255
 								else:
-									accumEvents[-e.y, -e.x, 1] = 255
+									accumEvents[e.y, e.x, 1] = 255
 
 					# store the last image
 					imgCnt += 1
@@ -560,7 +497,7 @@ if accumFlag:
 		
 		cnt = 0
 		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_P/'
+		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
 		with open(imgDir + 'GT_flow.txt', "w") as text_file:
 
 			while True:
@@ -584,43 +521,6 @@ if accumFlag:
 
 					# write ventral flow
 					text_file.write("%i %.6f %.6f %.6f\n" % (cnt, vx, vy, vz))
-
-				# if the file is not in the directory after reading some files, break
-				elif readFlag == True:
-					break
-
-				# update the counter
-				cnt += 1
-
-		cnt = 0
-		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_P/'
-		with open(imgDir + 'GT_directions.txt', "w") as text_file:
-
-			while True:
-
-				# create the name of the file
-				file = str(cnt) + '.png'
-
-				# check wether it is included in the directory
-				if os.path.isfile(imgDir + file):
-
-					# update the flag
-					readFlag  = True
-					time = cnt * accumTime / 1000.0
-
-					# check the values of the ground truth file
-					under = int(floor(time))
-
-					dxP = (directions[under-1,1] * (directions[under,0] - time) + directions[under,1] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dxN = (directions[under-1,2] * (directions[under,0] - time) + directions[under,2] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dyP = (directions[under-1,3] * (directions[under,0] - time) + directions[under,3] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dyN = (directions[under-1,4] * (directions[under,0] - time) + directions[under,4] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dzP = (directions[under-1,5] * (directions[under,0] - time) + directions[under,5] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-					dzN = (directions[under-1,6] * (directions[under,0] - time) + directions[under,6] * (time - directions[under-1,0])) / (directions[under,0] - directions[under-1,0])
-
-					# write ventral flow
-					text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f\n" % (cnt, dxP, dxN, dyP, dyN, dzP, dzN))
 
 				# if the file is not in the directory after reading some files, break
 				elif readFlag == True:
