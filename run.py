@@ -262,7 +262,6 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         # accumulate events in an image
         if accumFlag:
 			if ts / accumTime == imgCnt:
-				if accumEvents[e.y, e.x] == 0:
 					accumEvents[e.y, e.x] = 255
 			else:
 				imgCnt += 1
@@ -308,7 +307,6 @@ if accumFlag:
 
 							# accumulate events in an image
 							if ts / accumTime == imgCnt:
-								if accumEvents[e.y, e.x] == 0:
 									accumEvents[e.y, e.x] = 255
 							else:
 								imgCnt += 1
@@ -411,9 +409,9 @@ if accumFlag:
 	        if accumFlag:
 				if ts / accumTime == imgCnt:
 					if p == '1':
-						accumEvents[e.y, e.x, 1] = 255
+						accumEvents[e.y, e.x, 1] = 255 # green
 					else:
-						accumEvents[e.y, e.x, 0] = 255
+						accumEvents[e.y, e.x, 0] = 255 # red
 						
 				else:
 					imgCnt += 1
@@ -423,9 +421,9 @@ if accumFlag:
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					if p == '1':
-						accumEvents[e.y, e.x, 1] = 255
+						accumEvents[e.y, e.x, 1] = 255 # green
 					else:
-						accumEvents[e.y, e.x, 0] = 255
+						accumEvents[e.y, e.x, 0] = 255 # red
 
 	# store the last image
 	if accumFlag:
