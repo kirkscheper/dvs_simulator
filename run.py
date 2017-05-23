@@ -104,8 +104,8 @@ for sgm in xrange(0, numSegments):
 				if float(entry) >= -(traj[cntRow, 1] - yLow) and float(entry) <= (yHigh - traj[cntRow, 1]):
 					y_ = float(entry)
 					while True:
-						entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> z: [-" + str(traj[cntRow, 3] - zLow) + ", " + str(zHigh - traj[cntRow, 3]) + "] ")
-						if float(entry) >= -(traj[cntRow, 3] - zLow) and float(entry) <= (zHigh - traj[cntRow, 3]):
+						entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> z: [-" + str(zHigh - traj[cntRow, 3]) + ", " + str(traj[cntRow, 3] - zLow) + "] ")
+						if float(entry) >= -(zHigh - traj[cntRow, 3]) and float(entry) <= (traj[cntRow, 3] - zLow):
 							z_ = float(entry)
 							while True:
 								entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> t: [0.1," + str(timePerSegment) + "] ")
@@ -113,9 +113,9 @@ for sgm in xrange(0, numSegments):
 									t_ = int(float(entry) * 1000)
 
 									# compute the trajectory for this segment
-									deltaX = y_ / t_
-									deltaY = x_ / t_
-									deltaZ = z_ / t_
+									deltaX = y_ / t_ # X and Y in the camera reference frame are interchanged
+									deltaY = x_ / t_ # X and Y in the camera reference frame are interchanged
+									deltaZ = - z_ / t_ # positive Z decreases altitude
 									
 									for i in xrange(cntRow + 1, t_ + cntRow + 1):
 
