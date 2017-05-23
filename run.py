@@ -46,28 +46,36 @@ timePerSegment = (50000 / numSegments) * 10**(-3)
 
 print "\n--------------------------------------\n TRAJECTORY GENERATION (RELATIVE MOTION)"
 
+# limits in each direction (change if bigger or smaller Blender scene)
+xHigh = 5.0
+xLow  = -5.0
+yHigh = 9.0
+yLow  = -9.0 
+zLow  = 0.1
+zHigh = 4.0
+
 # starting point of the trajectory
 traj[0,:] = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
 while True:
-	entry = raw_input("\n[ORIGIN] -> The origin is at [0, 0, 0.5], would you like to change it? [y/n] ")
+	entry = raw_input("\n[ORIGIN, W] -> The origin is at [0, 0, 0.5], would you like to change it? [y/n] ")
 	if entry == 'y' or entry == 'Y':
 
 			while True:
-				entry = raw_input("[ORIGIN] -> x: [-2.0,2.0] ")
+				entry = raw_input("[ORIGIN, W] -> x: [" + str(yLow) + ", " + str(yHigh) + "] ")
 
-				if float(entry) >= -2.0 and float(entry) <= 2.0:
+				if float(entry) >= yLow and float(entry) <= yHigh:
 					traj[0, 1] = float(entry)
 
 					while True:
-						entry = raw_input("[ORIGIN] -> y: [-1.0,1.0] ")
+						entry = raw_input("[ORIGIN, W] -> y: [" + str(xLow) + ", " + str(xHigh) + "] ")
 
-						if float(entry) >= -1.0 and float(entry) <= 1.0:
+						if float(entry) >= xLow and float(entry) <= xHigh:
 							traj[0, 2] = float(entry)
 
 							while True:
-								entry = raw_input("[ORIGIN] -> z: [0.5,2.0] ")
+								entry = raw_input("[ORIGIN, W] -> z: [" + str(zLow) + ", " + str(zHigh) + "] ")
 
-								if float(entry) >= 0.5 and float(entry) <= 2.0:
+								if float(entry) >= zLow and float(entry) <= zHigh:
 									traj[0, 3] = float(entry)									
 									break
 								else:
@@ -84,31 +92,23 @@ while True:
 	else:
 		print "Try again."
 
-# limits in each direction (change if bigger or smaller Blender scene)
-xHigh = 2
-xLow  = -2
-yHigh = 3.5
-yLow  = -3.5 
-zLow  = 0.1
-zHigh = 2.5
-
 # generate the desired trajectory
 cntRow = 0
 for sgm in xrange(0, numSegments):
 	while True:
-		entry = raw_input("\n[SEGMENT " + str(sgm + 1) + "] -> x: [-" + str(traj[cntRow, 2] - xLow) + ", " + str(xHigh - traj[cntRow, 2]) + "] ")
+		entry = raw_input("\n[SEGMENT " + str(sgm + 1) + ", C] -> x: [-" + str(traj[cntRow, 2] - xLow) + ", " + str(xHigh - traj[cntRow, 2]) + "] ")
 		if float(entry) >= -(traj[cntRow, 2] - xLow) and float(entry) <= (xHigh - traj[cntRow, 2]):
 			x_ = float(entry)
 			while True:
-				entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> y: [-" + str(traj[cntRow, 1] - yLow) + ", " + str(yHigh - traj[cntRow, 1]) + "] ")
+				entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> y: [-" + str(traj[cntRow, 1] - yLow) + ", " + str(yHigh - traj[cntRow, 1]) + "] ")
 				if float(entry) >= -(traj[cntRow, 1] - yLow) and float(entry) <= (yHigh - traj[cntRow, 1]):
 					y_ = float(entry)
 					while True:
-						entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> z: [-" + str(traj[cntRow, 3] - zLow) + ", " + str(zHigh - traj[cntRow, 3]) + "] ")
+						entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> z: [-" + str(traj[cntRow, 3] - zLow) + ", " + str(zHigh - traj[cntRow, 3]) + "] ")
 						if float(entry) >= -(traj[cntRow, 3] - zLow) and float(entry) <= (zHigh - traj[cntRow, 3]):
 							z_ = float(entry)
 							while True:
-								entry = raw_input("[SEGMENT " + str(sgm + 1) + "] -> t: [0.1," + str(timePerSegment) + "] ")
+								entry = raw_input("[SEGMENT " + str(sgm + 1) + ", C] -> t: [0.1," + str(timePerSegment) + "] ")
 								if float(entry) >= 0.1 and float(entry) <= timePerSegment:
 									t_ = int(float(entry) * 1000)
 
