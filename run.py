@@ -411,9 +411,9 @@ if accumFlag:
 	        if accumFlag:
 				if ts / accumTime == imgCnt:
 					if p == '1':
-						accumEvents[e.y, e.x, 0] = 255
-					else:
 						accumEvents[e.y, e.x, 1] = 255
+					else:
+						accumEvents[e.y, e.x, 0] = 255
 						
 				else:
 					imgCnt += 1
@@ -423,9 +423,9 @@ if accumFlag:
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					if p == '1':
-						accumEvents[e.y, e.x, 0] = 255
-					else:
 						accumEvents[e.y, e.x, 1] = 255
+					else:
+						accumEvents[e.y, e.x, 0] = 255
 
 	# store the last image
 	if accumFlag:
@@ -463,9 +463,9 @@ if accumFlag:
 							# accumulate events in an image
 							if ts / accumTime == imgCnt:
 								if p == '1':
-									accumEvents[e.y, e.x, 0] = 255
+									accumEvents[e.y, e.x, 1] = 255 # green
 								else:
-									accumEvents[e.y, e.x, 1] = 255
+									accumEvents[e.y, e.x, 0] = 255 # red
 							else:
 								imgCnt += 1
 								if imgCnt >= 10:
@@ -474,9 +474,9 @@ if accumFlag:
 								accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 								accumEvents[0, 0, 0] = 0
 								if p == '1':
-									accumEvents[e.y, e.x, 0] = 255
+									accumEvents[e.y, e.x, 1] = 255 # green
 								else:
-									accumEvents[e.y, e.x, 1] = 255
+									accumEvents[e.y, e.x, 0] = 255 # red
 
 					# store the last image
 					imgCnt += 1
