@@ -222,9 +222,9 @@ aedatFile = bagSplit[0] + '.aedat'
 
 # check directories for image storage
 if accumFlag:
-	if not os.path.exists('aedat/images/'):
-		os.makedirs('aedat/images/')
-	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
+	if not os.path.exists('aedat/images/No_Polarity/'):
+		os.makedirs('aedat/images/No_Polarity/')
+	imgDir = 'aedat/images/No_Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 	accumEvents = np.zeros((128, 128), dtype=np.uint8)
 	accumEvents[0, 0] = 0
 	imgCnt = 0
@@ -253,7 +253,7 @@ for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
         x = '{0:07b}'.format(128-e.x)
         y = '{0:07b}'.format(128-e.y)
         p = '1' if e.polarity else '0'
-        address = "0" + y + x + p
+        address = "0" + y + x + p # TODO: Polarity is INVERTED in .aedat files
 
         # write the event using big endian format
         file.write("%s" % struct.pack('>I', int(address, 2)))
@@ -294,7 +294,7 @@ if accumFlag:
 				else:
 					accumTime = int(entry)
 					accumTimeVector.append(accumTime)
-					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
+					imgDir = 'aedat/images/No_Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 					accumEvents = np.zeros((128, 128), dtype=np.uint8)
 					accumEvents[0, 0] = 0
 					imgCnt = 0
@@ -338,7 +338,7 @@ if accumFlag:
 		
 		cnt = 0
 		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_NoPol/'
+		imgDir = 'aedat/images/No_Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 		with open(imgDir + 'GT_flow.txt', "w") as text_file:
 
 			while True:
@@ -391,9 +391,9 @@ while True:
 		print "Try again."
 
 if accumFlag:
-	if not os.path.exists('aedat/images/'):
-		os.makedirs('aedat/images/')
-	imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
+	if not os.path.exists('aedat/images/Polarity/'):
+		os.makedirs('aedat/images/Polarity/')
+	imgDir = 'aedat/images/Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 	accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 	accumEvents[0, 0, 0] = 0
 	imgCnt = 0
@@ -447,7 +447,7 @@ if accumFlag:
 				else:
 					accumTime = int(entry)
 					accumTimeVector.append(accumTime)
-					imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
+					imgDir = 'aedat/images/Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
 					accumEvents[0, 0, 0] = 0
 					imgCnt = 0
@@ -497,7 +497,272 @@ if accumFlag:
 		
 		cnt = 0
 		readFlag = False
-		imgDir = 'aedat/images/' + bagSplit[0] + '_' + str(accumTime) + 'us_Pol/'
+		imgDir = 'aedat/images/Polarity/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+		with open(imgDir + 'GT_flow.txt', "w") as text_file:
+
+			while True:
+
+				# create the name of the file
+				file = str(cnt) + '.png'
+
+				# check wether it is included in the directory
+				if os.path.isfile(imgDir + file):
+
+					# update the flag
+					readFlag  = True
+					time = cnt * accumTime / 1000.0
+
+					# check the values of the ground truth file
+					under = int(floor(time))
+
+					vx = (ventralFlow[under-1,1] * (ventralFlow[under,0] - time) + ventralFlow[under,1] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vy = (ventralFlow[under-1,2] * (ventralFlow[under,0] - time) + ventralFlow[under,2] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vz = (ventralFlow[under-1,3] * (ventralFlow[under,0] - time) + ventralFlow[under,3] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+
+					# write ventral flow
+					text_file.write("%i %.6f %.6f %.6f\n" % (cnt, vx, vy, vz))
+
+				# if the file is not in the directory after reading some files, break
+				elif readFlag == True:
+					break
+
+				# update the counter
+				cnt += 1
+
+# check if the user wants to accumulate events SEPARATELY
+accumFlag = False
+while True:
+	entry = raw_input("\nDo you want to record images with accumulated events (Polarity Separated)? [y/n] ")
+	if entry == 'y' or entry == 'Y':
+		accumFlag = True
+		while True:
+			entry = raw_input("Enter the time window for the accumulation: [150, " + str(int(lastTime*50)) + "] (us) ")
+			if int(entry) < 150 or int(entry) > lastTime*50:
+				print "Try again."
+			else:
+				accumTime = int(entry)
+				break
+		break
+	elif entry == 'n' or entry == 'N':
+		accumFlag = False
+		break
+	else:
+		print "Try again."
+
+if accumFlag:
+
+	# ON events
+	if not os.path.exists('aedat/images/ON/'):
+		os.makedirs('aedat/images/ON/')
+	imgDir = 'aedat/images/ON/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+	accumEvents = np.zeros((128, 128), dtype=np.uint8)
+	accumEvents[0, 0] = 0
+	imgCnt = 0
+	if not os.path.exists(imgDir):
+		os.makedirs(imgDir)
+
+	bag = rosbag.Bag(bagFilePath)
+	for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+	    for e in msg.events:
+
+	        ts = int(e.ts.to_nsec() / 1000.0)
+	        p = '1' if e.polarity else '0'
+
+	        # accumulate events in an image
+	        if accumFlag:
+				if ts / accumTime == imgCnt:
+					if p == '1':
+						accumEvents[e.y, e.x] = 255
+						
+				else:
+					imgCnt += 1
+					if imgCnt >= 10:
+						img = Image.fromarray(accumEvents)
+						img.save(imgDir + str(imgCnt - 10) + '.png')
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
+					if p == '1':
+						accumEvents[e.y, e.x] = 255
+
+	# store the last image
+	if accumFlag:
+		imgCnt += 1
+		img = Image.fromarray(accumEvents)
+		img.save(imgDir + str(imgCnt - 10) + '.png')
+
+	# OFF events
+	if not os.path.exists('aedat/images/OFF/'):
+		os.makedirs('aedat/images/OFF/')
+	imgDir = 'aedat/images/OFF/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+	accumEvents = np.zeros((128, 128), dtype=np.uint8)
+	accumEvents[0, 0] = 0
+	imgCnt = 0
+	if not os.path.exists(imgDir):
+		os.makedirs(imgDir)
+
+	bag = rosbag.Bag(bagFilePath)
+	for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+	    for e in msg.events:
+
+	        ts = int(e.ts.to_nsec() / 1000.0)
+	        p = '1' if e.polarity else '0'
+
+	        # accumulate events in an image
+	        if accumFlag:
+				if ts / accumTime == imgCnt:
+					if p == '0':
+						accumEvents[e.y, e.x] = 255
+						
+				else:
+					imgCnt += 1
+					if imgCnt >= 10:
+						img = Image.fromarray(accumEvents)
+						img.save(imgDir + str(imgCnt - 10) + '.png')
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
+					if p == '0':
+						accumEvents[e.y, e.x] = 255
+
+	# store the last image
+	if accumFlag:
+		imgCnt += 1
+		img = Image.fromarray(accumEvents)
+		img.save(imgDir + str(imgCnt - 10) + '.png')
+
+if accumFlag:
+	accumTimeVector = [accumTime]
+	while True:
+		entry = raw_input("\nDo you want to record images with a different time window (Polarity Separated)? [y/n] ")
+		if entry == 'y' or entry == 'Y':
+			while True:
+				entry = raw_input("Enter the time window for the accumulation: [150, " + str(int(lastTime*50)) + "] (us) ")
+				if int(entry) < 150 or int(entry) > lastTime*50:
+					print "Try again."
+				elif int(entry) in accumTimeVector:
+					print "Try again. Same time window as before."
+				else:
+
+					# ON events
+					accumTime = int(entry)
+					accumTimeVector.append(accumTime)
+					imgDir = 'aedat/images/ON/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
+					imgCnt = 0
+					if not os.path.exists(imgDir):
+						os.makedirs(imgDir)
+
+					for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+					    for e in msg.events:
+
+							ts = int(e.ts.to_nsec() / 1000.0)
+							p = '1' if e.polarity else '0'
+
+							# accumulate events in an image
+							if ts / accumTime == imgCnt:
+								if p == '1':
+									accumEvents[e.y, e.x] = 255
+
+							else:
+								imgCnt += 1
+								if imgCnt >= 10:
+									img = Image.fromarray(accumEvents)
+									img.save(imgDir + str(imgCnt - 10) + '.png')
+								accumEvents = np.zeros((128, 128), dtype=np.uint8)
+								accumEvents[0, 0] = 0
+								if p == '1':
+									accumEvents[e.y, e.x] = 255
+
+					# store the last image
+					imgCnt += 1
+					img = Image.fromarray(accumEvents)
+					img.save(imgDir + str(imgCnt - 10) + '.png')
+
+					# OFF events
+					imgDir = 'aedat/images/OFF/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
+					imgCnt = 0
+					if not os.path.exists(imgDir):
+						os.makedirs(imgDir)
+
+					for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+					    for e in msg.events:
+
+							ts = int(e.ts.to_nsec() / 1000.0)
+							p = '1' if e.polarity else '0'
+
+							# accumulate events in an image
+							if ts / accumTime == imgCnt:
+								if p == '0':
+									accumEvents[e.y, e.x] = 255
+
+							else:
+								imgCnt += 1
+								if imgCnt >= 10:
+									img = Image.fromarray(accumEvents)
+									img.save(imgDir + str(imgCnt - 10) + '.png')
+								accumEvents = np.zeros((128, 128), dtype=np.uint8)
+								accumEvents[0, 0] = 0
+								if p == '0':
+									accumEvents[e.y, e.x] = 255
+
+					# store the last image
+					imgCnt += 1
+					img = Image.fromarray(accumEvents)
+					img.save(imgDir + str(imgCnt - 10) + '.png')
+
+					break
+		elif entry == 'n' or entry == 'N':
+			break
+		else:
+			print "Try again."
+
+	bag.close()
+
+# generate the ground truth for the set of images generated
+if accumFlag:
+	for accumTime in accumTimeVector:
+		
+		cnt = 0
+		readFlag = False
+		imgDir = 'aedat/images/ON/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
+		with open(imgDir + 'GT_flow.txt', "w") as text_file:
+
+			while True:
+
+				# create the name of the file
+				file = str(cnt) + '.png'
+
+				# check wether it is included in the directory
+				if os.path.isfile(imgDir + file):
+
+					# update the flag
+					readFlag  = True
+					time = cnt * accumTime / 1000.0
+
+					# check the values of the ground truth file
+					under = int(floor(time))
+
+					vx = (ventralFlow[under-1,1] * (ventralFlow[under,0] - time) + ventralFlow[under,1] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vy = (ventralFlow[under-1,2] * (ventralFlow[under,0] - time) + ventralFlow[under,2] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+					vz = (ventralFlow[under-1,3] * (ventralFlow[under,0] - time) + ventralFlow[under,3] * (time - ventralFlow[under-1,0])) / (ventralFlow[under,0] - ventralFlow[under-1,0])
+
+					# write ventral flow
+					text_file.write("%i %.6f %.6f %.6f\n" % (cnt, vx, vy, vz))
+
+				# if the file is not in the directory after reading some files, break
+				elif readFlag == True:
+					break
+
+				# update the counter
+				cnt += 1
+
+	for accumTime in accumTimeVector:
+		
+		cnt = 0
+		readFlag = False
+		imgDir = 'aedat/images/OFF/' + bagSplit[0] + '_' + str(accumTime) + 'us/'
 		with open(imgDir + 'GT_flow.txt', "w") as text_file:
 
 			while True:
