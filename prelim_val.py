@@ -22,69 +22,30 @@ Start = 0
 x_ = []
 y_ = []
 z_ = []
+xInit = []
+yInit = []
 zInit = []
 folders = []
 
 # all the trajectories last the same
 t_ = 1000 # ms
 
-# test for a fixed altitude of 0.5m
+# validation trajectories
 cntData = 0
-xVector = [-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
-yVector = [-2.5, -2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
-zVector = [0.5 for i in xrange(0,len(xVector))]
-alt     = 2.5
-text = 'desc' + str(int(alt*100)) + '_'
-for i in xrange(0,len(xVector)):
-	for ii in xrange(0,len(yVector)):
-		x_.append(xVector[i])
-		y_.append(yVector[ii])
-		z_.append(zVector[i])
-		zInit.append(alt)
-		folders.append(text + str(cntData))
-		cntData += 1
+x_ = [2.18, -1.74, -1.04, -1.87, -0.84,  0.16, -0.57, -1.62,  1.44, -1.55]
+y_ = [0.29, -1.79, -0.82,  2.11, -1.08, -0.92,  2.14,  1.59, -1.43,  1.06]
+z_ = [0 for i in xrange(0,len(x_))]
+yInit   = [0.0,  2.5, -1.5, -0.5, -0.5,  0.0, -0.5,  2.0, -2.0, 2.5]
+xInit   = [1.0,  0.5, -1.5, -1.5,  2.0, -1.5, -1.0, -2.5,  2.5, 1.5]
+zInit   = [1 for i in xrange(0,len(x_))]
 
-zVector = [1.0 for i in xrange(0,len(xVector))]
-for i in xrange(0,len(xVector)):
-	for ii in xrange(0,len(yVector)):
-		x_.append(xVector[i])
-		y_.append(yVector[ii])
-		z_.append(zVector[i])
-		zInit.append(alt)
-		folders.append(text + str(cntData))
-		cntData += 1
-
-zVector = [1.5 for i in xrange(0,len(xVector))]
-for i in xrange(0,len(xVector)):
-	for ii in xrange(0,len(yVector)):
-		x_.append(xVector[i])
-		y_.append(yVector[ii])
-		z_.append(zVector[i])
-		zInit.append(alt)
-		folders.append(text + str(cntData))
-		cntData += 1
-
-zVector = [2.0 for i in xrange(0,len(xVector))]
-for i in xrange(0,len(xVector)):
-	for ii in xrange(0,len(yVector)):
-		x_.append(xVector[i])
-		y_.append(yVector[ii])
-		z_.append(zVector[i])
-		zInit.append(alt)
-		folders.append(text + str(cntData))
-		cntData += 1
-
-# check the x_=0 and y_=0 index
-noValid = []
-for dataIdx in xrange(0, len(x_)):
-	if x_[dataIdx] == 0 and y_[dataIdx] == 0 and z_[dataIdx] == 0:
-		noValid.append(dataIdx)
+text = 'val' + str(int(100)) + '_'
+for i in xrange(0,len(x_)):
+	folders.append(text + str(cntData))
+	cntData += 1
 
 # generate all the datasets
 for dataIdx in xrange(0, len(x_)):
-
-	if dataIdx in noValid:
-		continue
 
 	if dataIdx >= Start:
 
@@ -96,6 +57,8 @@ for dataIdx in xrange(0, len(x_)):
 		traj[0,:] = [0, 0.000000, 0.000000, 0.500000, 1.000000, 0.000000, 0.000000, 0.000000]
 
 		# custom starting point
+		traj[0, 1] = xInit[dataIdx]
+		traj[0, 2] = yInit[dataIdx]
 		traj[0, 3] = zInit[dataIdx]
 
 		# generate the desired trajectory
@@ -156,7 +119,7 @@ for dataIdx in xrange(0, len(x_)):
 		# NO POLARITY
 
 		# directory for data
-		path = '/media/fedepare/Datos/Ubuntu/Projects/TF_DVS/general/'
+		path = '/home/fedepare/Projects/catkin_ws/data/dataset/'
 
 		# check directories for image storage
 		if not os.path.exists(path + 'No_Polarity/'):
@@ -237,8 +200,8 @@ for dataIdx in xrange(0, len(x_)):
 			os.makedirs(path + 'Polarity/')
 
 		imgDir = path + 'Polarity/' + folders[dataIdx] + '/'
-		accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
-		accumEvents[0, 0, 0] = 0
+		accumEvents = np.zeros((128, 128), dtype=np.uint8)
+		accumEvents[0, 0] = 0
 		imgCnt = 0
 		if not os.path.exists(imgDir):
 			os.makedirs(imgDir)
@@ -254,21 +217,21 @@ for dataIdx in xrange(0, len(x_)):
 		        # accumulate events in an image
 				if ts / accumTime == imgCnt:
 					if p == '1':
-						accumEvents[e.y, e.x, 1] = 255 # green
+						accumEvents[e.y, e.x] = 255 # bright
 					else:
-						accumEvents[e.y, e.x, 0] = 255 # red
+						accumEvents[e.y, e.x] = 127 # not that bright
 						
 				else:
 					imgCnt += 1
 					if imgCnt >= 10:
 						img = Image.fromarray(accumEvents)
 						img.save(imgDir + str(imgCnt - 10) + '.png')
-					accumEvents = np.zeros((128, 128, 3), dtype=np.uint8)
-					accumEvents[0, 0, 0] = 0
+					accumEvents = np.zeros((128, 128), dtype=np.uint8)
+					accumEvents[0, 0] = 0
 					if p == '1':
-						accumEvents[e.y, e.x, 1] = 255 # green
+						accumEvents[e.y, e.x] = 255 # green
 					else:
-						accumEvents[e.y, e.x, 0] = 255 # red
+						accumEvents[e.y, e.x] = 127 # not that bright
 
 		# store the last image
 		imgCnt += 1
