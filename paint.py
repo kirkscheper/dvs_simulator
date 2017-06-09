@@ -1,15 +1,14 @@
 import os
 import sys
-import csv
-import glob
-import rosbag
-import struct
+import shutil
 import numpy as np
-from math import fabs
-from math import floor
 from pygame import *
+from dataset import *
 from pygamehelper import *
 from pygame.locals import *
+from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
+
 
 class Starter(PygameHelper):
 
@@ -33,6 +32,7 @@ class Starter(PygameHelper):
 			pygame.draw.line(self.screen, (0, 0, 0), (0 + xSeg * i, self.h/2 - wSeg), (0 + xSeg * i, self.h/2 + wSeg), 1)
 			pygame.draw.line(self.screen, (0, 0, 0), (self.w/2 - wSeg, 0 + ySeg * i), (self.w/2 + wSeg, 0 + ySeg * i), 1)
 
+
 	# follow mouse motion
 	def mouseMotion(self, buttons, pos, rel, time):
 
@@ -54,12 +54,12 @@ class Starter(PygameHelper):
 				draw = True
 
 				# store data
-				tRaw.append((time-refTime) / 2)
+				tRaw.append((time-refTime) * 2)
 				xRaw.append(self.xScale * 2*(pos[0] - self.w/2)/float(self.w))
 				yRaw.append(self.yScale * 2*(self.h/2-pos[1])/float(self.h))
 
 				# time
-				print 'Time: {0}\r'.format((time-refTime) / 2 * 10**(-3)),
+				print 'Time: {0}\r'.format((time-refTime) * 2 * 10**(-3)),
 				sys.stdout.flush()
 
 			elif buttons[0] == 0 and draw == True:
@@ -78,35 +78,30 @@ class Starter(PygameHelper):
 				xRaw.append(self.xScale * 2*(pos[0] - self.w/2)/float(self.w))
 				yRaw.append(self.yScale * 2*(self.h/2-pos[1])/float(self.h))
 
-def process_trajectory():
+
+def process_trajectory(altitude):
+
+	global tProc, xProc, yProc
+	global wx, wy, D
+
+	# fit a spline for interpolation
+	xSpline = interp1d(tRaw, xRaw, kind='cubic')
+	ySpline = interp1d(tRaw, yRaw, kind='cubic')
 
 	# loop over the data ms by ms
 	tProc = []
 	xProc = []
 	yProc = []
 	for i in xrange(0,tRaw[-1]+1):
-
-		# check if this ms exists
-		if i in tRaw:
-
-			# indices for interpolation
-			idxLow  = tRaw.index(i)
-			idxHigh = idxLow + 1
-
-			# store data
-			tProc.append(tRaw[idxLow])
-			xProc.append(xRaw[idxLow])
-			yProc.append(yRaw[idxLow])
-
-		else:
-			tProc.append(i)
-			xProc.append((xRaw[idxLow]*(tRaw[idxHigh]-i)+xRaw[idxHigh]*(i-tRaw[idxLow]))/(tRaw[idxHigh]-tRaw[idxLow]))
-			yProc.append((yRaw[idxLow]*(tRaw[idxHigh]-i)+yRaw[idxHigh]*(i-tRaw[idxLow]))/(tRaw[idxHigh]-tRaw[idxLow]))
+		tProc.append(i)
+		xProc.append(xSpline(i))
+		yProc.append(ySpline(i))
 
 	# write the txt file
 	with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt", "w") as text_file:
 		for i in xrange(0,len(tProc)):
-	 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(tProc[i]), xProc[i], yProc[i], 1.5, 1.0, 0.0, 0.0, 0.0))
+	 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(tProc[i]), xProc[i], yProc[i], altitude, 1.0, 0.0, 0.0, 0.0))
+
 
 # drawing variables
 global done, draw
@@ -128,52 +123,51 @@ xRaw = []
 yRaw = []
 
 # run the program
-s = Starter(800, 800, 2.5, 2.5)
-s.mainLoop(1000)
+#s = Starter(800, 800, 2.5, 2.5)
+#s.mainLoop(1000)
 
 # process the results
+altitude = 0.5
 print "Processing the trajectory..."
-process_trajectory()
+#process_trajectory(altitude)
+
+xProc = []
+yProc = []
+tProc = []
+#th = np.linspace(np.pi, -np.pi, 4000)
+#for i in xrange(0,len(th)):
+#	xProc.append(np.cos(th[i]))
+#	yProc.append(np.sin(th[i]))
+#	tProc.append(i)
+xProc = np.linspace(-1, 1, 4000)
+yProc = np.linspace(-1, 1, 4000)
+for i in xrange(0,len(xProc)):
+	#yProc.append(np.sin(2*np.pi*i/2000))
+	tProc.append(i)
+
+# write the txt file
+with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt", "w") as text_file:
+	for i in xrange(0,len(tProc)):
+ 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(tProc[i]), xProc[i], yProc[i], altitude, 1.0, 0.0, 0.0, 0.0))
 
 # render and simulate the scene
-os.system("roslaunch dvs_simulator_py custom_render.launch")
-os.system("roslaunch dvs_simulator_py custom_simulate.launch")
+run_simulator()
+data = dataset('/media/fedepare/Datos/Ubuntu/Projects/TF_Continuous')
 
-# get the current rosbag file
-curDir = os.getcwd()
-os.chdir(os.getcwd() + '/src/rpg_davis_simulator/datasets/rosbags/')
-bagFile = max(glob.glob('*.bag'), key=os.path.getctime)
-bagFilePath = os.getcwd() + '/' + bagFile
-os.chdir(curDir)
+# generate aedat file
+#data.generate_aedat()
 
-# split the name and create the aedat filename
-bagSplit = bagFile.split('.')
-aedatFile = bagSplit[0] + '.aedat'
+# generate images
+imgCnt = data.generate_images(1000)
 
-# check for the aedat directory
-if not os.path.exists('aedat/'):
-    os.makedirs('aedat/')
+# generate groundtruth
+data.generate_groundtruth(tProc, xProc, yProc, altitude, imgCnt)
 
-# open the file and write the headers
-file = open("aedat/" + aedatFile, "w")
-file.write('#!AER-DAT2.0\r\n')
-file.write('# This is a raw AE data file created by saveaerdat.m\r\n');
-file.write('# Data format is int32 address, int32 timestamp (8 bytes total), repeated for each event\r\n');
-file.write('# Timestamps tick is 1 us\r\n');
+# clean data generated
+path = 'src/rpg_davis_simulator/datasets/full_datasets'
+if os.path.exists(path):
+	shutil.rmtree(path)
 
-# open the rosbag file and process the events
-bag = rosbag.Bag(bagFilePath)
-for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-    for e in msg.events:
-
-        ts = int(e.ts.to_nsec() / 1000.0)
-        x = '{0:07b}'.format(128-e.x)
-        y = '{0:07b}'.format(128-e.y)
-        p = '1' if e.polarity else '0'
-        address = "0" + y + x + p # TODO: Polarity is INVERTED in .aedat files
-
-        # write the event using big endian format
-        file.write("%s" % struct.pack('>I', int(address, 2)))
-        file.write("%s" % struct.pack('>I', int(ts)))
-
-bag.close()
+path = 'src/rpg_davis_simulator/datasets/rosbags'
+if os.path.exists(path):
+	shutil.rmtree(path)
