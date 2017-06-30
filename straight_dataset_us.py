@@ -28,7 +28,7 @@ def generate_relPose(tProc, xProc, yProc, altitude, folderName = '', path = '', 
 
 
 # Start at
-Start = 308-288
+Start = 0
 
 # initialize variables
 x_ = []
@@ -51,8 +51,10 @@ th      = np.linspace(0, thEnd, num=360/15)
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
 
 # initial positions
-xStart = [0.5]
-yStart = [-1.5]
+xStart = [0.0, 1.5, 1.5, -1.5, -1.5]
+yStart = [0.0, 1.5, -1.5, 1.5, -1.5]
+xStart = [0.0]
+yStart = [0.0]
 
 # test for a fixed altitude of 0.5m
 cntData = 0
@@ -124,13 +126,13 @@ for dataIdx in xrange(0, len(x_)):
 
  	 	# run the simulator
  	 	run_simulator()
- 		path = '/media/fedepare/Datos/Ubuntu/Projects/DeepSiameseDVS'
-		datasetFolder = 'images'
+ 		path = '/media/fedepare/Datos/Ubuntu/Projects/DeepDVS'
+		datasetFolder = 'images_exp05'
 		data = dataset(path, datasetFolder)
 
 		# generate images
 		imgStart = 0
-		imgCnt = data.generate_images(1000, folderName=str(288+folders[dataIdx]), imgStart = imgStart) # us
+		imgCnt = data.generate_images(1000, folderName=str(folders[dataIdx]), imgStart = imgStart) # us
 
 		# generate groundtruth data
 		xProc = []
@@ -142,7 +144,7 @@ for dataIdx in xrange(0, len(x_)):
 			yProc.append(traj[i, 1]) # axis interchanged
 		data.generate_ventralFlow(tProc, xProc, yProc, alt, imgCnt, imgStart = imgStart)
 
-		generate_relPose(tProc, xProc, yProc, alt, folderName = str(288+folders[dataIdx]), path = path, datasetFolder = datasetFolder)
+		generate_relPose(tProc, xProc, yProc, alt, folderName = str(folders[dataIdx]), path = path, datasetFolder = datasetFolder)
 
 		# clean data generated
 		path = 'src/rpg_davis_simulator/datasets/full_datasets'

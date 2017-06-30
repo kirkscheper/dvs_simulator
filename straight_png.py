@@ -16,19 +16,8 @@ import numpy as np
 from PIL import Image
 from dataset import *
 
-def generate_relPose(tProc, xProc, yProc, altitude, folderName = '', path = '', datasetFolder = ''):
-
-	path   = path + '/' + datasetFolder + '/' + folderName
-	imgCnt = len(glob.glob1(path, "*.png"))
-
-	# write the txt file
-	with open(path + '/GT_pose.txt', 'w') as text_file:
-		for i in xrange(0, imgCnt):
-	 		text_file.write("%i %.6f %.6f %.6f\n" % (i+1, xProc[i], yProc[i], altitude))
-
-
 # Start at
-Start = 308-288
+Start = 0
 
 # initialize variables
 x_ = []
@@ -51,7 +40,7 @@ th      = np.linspace(0, thEnd, num=360/15)
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
 
 # initial positions
-xStart = [0.5]
+xStart = [-1.5]
 yStart = [-1.5]
 
 # test for a fixed altitude of 0.5m
@@ -123,32 +112,45 @@ for dataIdx in xrange(0, len(x_)):
 		 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(traj[i, 0]), traj[i, 1], traj[i, 2], traj[i, 3], traj[i, 4], traj[i, 5], traj[i, 6], traj[i, 7]))
 
  	 	# run the simulator
- 	 	run_simulator()
- 		path = '/media/fedepare/Datos/Ubuntu/Projects/DeepSiameseDVS'
-		datasetFolder = 'images'
-		data = dataset(path, datasetFolder)
+ 	 	os.system("roslaunch dvs_simulator_py custom_render.launch")
 
-		# generate images
-		imgStart = 0
-		imgCnt = data.generate_images(1000, folderName=str(288+folders[dataIdx]), imgStart = imgStart) # us
+ 	 	# copy the ext folder to the desired path
+ 	 	pathTo = '/media/fedepare/Datos/Ubuntu/Projects/DeepDVS/images_prueba'
+ 	 	if not os.path.exists(pathTo): os.makedirs(pathTo)
+		pathFrom = os.getcwd() + '/src/rpg_davis_simulator/datasets/full_datasets/3planesDVSext/data/exr'
+		os.system('cp -a ' + pathFrom + ' ' + pathTo)
 
-		# generate groundtruth data
-		xProc = []
-		yProc = []
-		tProc = []
-		for i in xrange(0,cntRow):
-			tProc.append(int(traj[i, 0]))
-			xProc.append(traj[i, 2]) # axis interchanged
-			yProc.append(traj[i, 1]) # axis interchanged
-		data.generate_ventralFlow(tProc, xProc, yProc, alt, imgCnt, imgStart = imgStart)
+		# rename the folder
+		os.system('mv ' + pathTo + '/exr ' + pathTo + '/val_' + str(folders[dataIdx]))
 
-		generate_relPose(tProc, xProc, yProc, alt, folderName = str(288+folders[dataIdx]), path = path, datasetFolder = datasetFolder)
+		# convert the .exr files into .png
+		curDir = os.getcwd()
+		nxtDir = pathTo + '/val_' + str(folders[dataIdx])
+		os.chdir(nxtDir)
+		os.system("mogrify -format png *.exr")
+		os.system("find . -type f -iname \*.exr -delete")
+		os.system("mogrify -colorspace Gray *.png")
+
+		# copy the optical flow groundtruth
+		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/DeepDVS/images_exp05/'
+		os.system('cp ' + pathFrom + 'val_' + str(folders[dataIdx]) + '/GT_flow.txt ' + nxtDir)
+
+		# rename the files
+		pngs  = len(glob.glob1(nxtDir,"*.png"))
+		for i in xrange(0,pngs):
+			file = '%04d.png' % i
+			os.system('mv ' + file + ' ' + str(i) + '.png')
+
+		# delete extra files
+		gt    = np.loadtxt('GT_flow.txt')
+		gtNum = gt[-1, 0]
+		os.system('rm 0.png')
+		for i in xrange(int(gtNum) + 1, int(pngs)): os.system('rm ' + str(i) + '.png')
+
+		# go back to the original directory
+		os.chdir(curDir)
 
 		# clean data generated
 		path = 'src/rpg_davis_simulator/datasets/full_datasets'
-		if os.path.exists(path):
-			shutil.rmtree(path)
-
-		path = 'src/rpg_davis_simulator/datasets/rosbags'
 		if os.path.exists(path):
 			shutil.rmtree(path)

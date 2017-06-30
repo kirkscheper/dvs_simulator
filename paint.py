@@ -134,15 +134,10 @@ print "Processing the trajectory..."
 xProc = []
 yProc = []
 tProc = []
-#th = np.linspace(np.pi, -np.pi, 4000)
-#for i in xrange(0,len(th)):
-#	xProc.append(np.cos(th[i]))
-#	yProc.append(np.sin(th[i]))
-#	tProc.append(i)
-xProc = np.linspace(-1, 1, 4000)
-yProc = np.linspace(-1, 1, 4000)
-for i in xrange(0,len(xProc)):
-	#yProc.append(np.sin(2*np.pi*i/2000))
+th = np.linspace(np.pi, -np.pi, 6000)
+for i in xrange(0,len(th)):
+	xProc.append(np.cos(th[i]))
+	yProc.append(np.sin(th[i]))
 	tProc.append(i)
 
 # write the txt file
@@ -152,16 +147,16 @@ with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt
 
 # render and simulate the scene
 run_simulator()
-data = dataset('/media/fedepare/Datos/Ubuntu/Projects/TF_Continuous')
+data = dataset('/media/fedepare/Datos/Ubuntu/Projects/DeepDVS')
 
 # generate aedat file
 #data.generate_aedat()
 
 # generate images
-imgCnt = data.generate_images(1000)
+imgCnt = data.generate_images(1000, folderName='circle')
 
 # generate groundtruth
-data.generate_groundtruth(tProc, xProc, yProc, altitude, imgCnt)
+data.generate_ventralFlow(tProc, xProc, yProc, altitude, imgCnt)
 
 # clean data generated
 path = 'src/rpg_davis_simulator/datasets/full_datasets'
