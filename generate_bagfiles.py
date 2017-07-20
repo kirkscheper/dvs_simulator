@@ -12,7 +12,6 @@ from dataset_bagfiles import *
 
 # Start at
 Start = 0
-End   = 1000
 
 # initialize variables
 x_ = []
@@ -30,13 +29,19 @@ t_ = 1000.0 # ms
 thDelta = 15
 thEnd   = (360-thDelta)*np.pi/180.0
 th      = np.linspace(0, thEnd, num=360/15)
+th = [30 * np.pi/180.0]
 
 # velocity vector
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
+velocities = [1.25]
 
 # initial positions
-xStart = [2]
-yStart = [-0.5]
+xStart = [0, -1.5, 2]
+yStart = [0, -1.5, -0.5]
+
+xStart = [-1.5]
+yStart = [-1.5]
+
 
 # test for a fixed altitude of 0.5m
 cntData = 0
@@ -57,7 +62,7 @@ for iii in xrange(0,len(xStart)):
 # generate all the datasets
 for dataIdx in xrange(0, len(x_)):
 
-	if dataIdx >= Start and dataIdx < End:
+	if dataIdx >= Start:
 
 		# allocate memory for the trajectory array
 		traj = np.zeros((50000, 8))
@@ -93,10 +98,10 @@ for dataIdx in xrange(0, len(x_)):
 		 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(traj[i, 0]), traj[i, 1], traj[i, 2], traj[i, 3], traj[i, 4], traj[i, 5], traj[i, 6], traj[i, 7]))
 
  	 	# run the simulator
- 	 	run_simulator()
+ 	 	run_simulator(texture = 'checkerboard')
  		path = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles'
-		data = dataset(path)
-		data.copy_bagfile(folderName = str(288+folders[dataIdx]), trajectory = traj, time = int(t_))
+		data = dataset(path, folderName = 'deleteeeeeeeeee_' + str(folders[dataIdx]))
+		data.copy_bagfile(trajectory = traj, time = int(t_))
 
 		# clean data generated
 		path = 'src/rpg_davis_simulator/datasets/full_datasets'

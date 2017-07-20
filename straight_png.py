@@ -17,7 +17,7 @@ from PIL import Image
 from dataset import *
 
 # Start at
-Start = 0
+Start = 53
 
 # initialize variables
 x_ = []
@@ -40,8 +40,8 @@ th      = np.linspace(0, thEnd, num=360/15)
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
 
 # initial positions
-xStart = [-1.5]
-yStart = [-1.5]
+xStart = [0]
+yStart = [0]
 
 # test for a fixed altitude of 0.5m
 cntData = 0
@@ -58,19 +58,10 @@ for i in xrange(0,len(th)):
 		folders.append(cntData)
 		cntData += 1
 
-# check the x_=0 and y_=0 index
-noValid = []
-for dataIdx in xrange(0, len(x_)):
-	if x_[dataIdx] == 0 and y_[dataIdx] == 0 and z_[dataIdx] == 0:
-		noValid.append(dataIdx)
-
 # generate all the datasets
 for dataIdx in xrange(0, len(x_)):
 
-	if dataIdx in noValid:
-		continue
-
-	if dataIdx >= Start:
+	if dataIdx >= Start and dataIdx < 54:
 
 		# allocate memory for the trajectory array
 		traj 		= np.zeros((50000, 8))
@@ -115,25 +106,21 @@ for dataIdx in xrange(0, len(x_)):
  	 	os.system("roslaunch dvs_simulator_py custom_render.launch")
 
  	 	# copy the ext folder to the desired path
- 	 	pathTo = '/media/fedepare/Datos/Ubuntu/Projects/DeepDVS/images_prueba'
+ 	 	pathTo = '/media/fedepare/Datos/Ubuntu/Projects/images_prueba'
  	 	if not os.path.exists(pathTo): os.makedirs(pathTo)
 		pathFrom = os.getcwd() + '/src/rpg_davis_simulator/datasets/full_datasets/3planesDVSext/data/exr'
 		os.system('cp -a ' + pathFrom + ' ' + pathTo)
 
 		# rename the folder
-		os.system('mv ' + pathTo + '/exr ' + pathTo + '/val_' + str(folders[dataIdx]))
+		os.system('mv ' + pathTo + '/exr ' + pathTo + '/' + str(folders[dataIdx]))
 
 		# convert the .exr files into .png
 		curDir = os.getcwd()
-		nxtDir = pathTo + '/val_' + str(folders[dataIdx])
+		nxtDir = pathTo + '/' + str(folders[dataIdx])
 		os.chdir(nxtDir)
 		os.system("mogrify -format png *.exr")
 		os.system("find . -type f -iname \*.exr -delete")
-		os.system("mogrify -colorspace Gray *.png")
-
-		# copy the optical flow groundtruth
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/DeepDVS/images_exp05/'
-		os.system('cp ' + pathFrom + 'val_' + str(folders[dataIdx]) + '/GT_flow.txt ' + nxtDir)
+		#os.system("mogrify -colorspace Gray *.png")
 
 		# rename the files
 		pngs  = len(glob.glob1(nxtDir,"*.png"))
@@ -142,10 +129,10 @@ for dataIdx in xrange(0, len(x_)):
 			os.system('mv ' + file + ' ' + str(i) + '.png')
 
 		# delete extra files
-		gt    = np.loadtxt('GT_flow.txt')
-		gtNum = gt[-1, 0]
-		os.system('rm 0.png')
-		for i in xrange(int(gtNum) + 1, int(pngs)): os.system('rm ' + str(i) + '.png')
+		# gt    = np.loadtxt('GT_flow.txt')
+		# gtNum = gt[-1, 0]
+		# os.system('rm 0.png')
+		# for i in xrange(int(gtNum) + 1, int(pngs)): os.system('rm ' + str(i) + '.png')
 
 		# go back to the original directory
 		os.chdir(curDir)

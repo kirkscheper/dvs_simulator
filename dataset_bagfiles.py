@@ -1,4 +1,5 @@
 import os
+import cv2
 import sys
 import csv
 import glob
@@ -10,21 +11,28 @@ from math import floor
 from PIL import Image
 
 
-def run_simulator():
-	os.system("roslaunch dvs_simulator_py custom_render.launch")
-	os.system("roslaunch dvs_simulator_py custom_simulate.launch")
+def run_simulator(texture = 'roadmap'):
+	if texture == 'roadmap':
+		os.system("roslaunch dvs_simulator_py custom_render.launch")
+		os.system("roslaunch dvs_simulator_py custom_simulate.launch")
+	elif texture == 'checkerboard':
+		os.system("roslaunch dvs_simulator_py checkerboard_render.launch")
+		os.system("roslaunch dvs_simulator_py checkerboard_simulate.launch")
+	else:
+		print('Unknown Blender texture.')
+		sys.exit()
 
 
 class dataset():
 
 	# constructor
-	def __init__(self, path):
+	def __init__(self, path, folderName = None):
 
 		# path to store the variables
 		self.path = path
 
 	# get the most recent bagfile, move it, rename it, and generate ground truth information
-	def copy_bagfile(self, folderName = None, trajectory = None, time = None):
+	def copy_bagfile(self, trajectory = None, time = None):
 
 		# get the current rosbag file
 		curDir = os.getcwd()
@@ -62,10 +70,71 @@ class dataset():
 		os.system('mv ' + bagDir + 'customTraj.txt ' + bagDir + 'trajectory.txt')
 
 		# get ventral flow information
-		if trajectory == None or time == None:
-			print('Warning: Ventral flow information was not generated.')
-		else:
-			self.generate_ventralFlow(trajectory, time)
+		self.generate_ventralFlow(trajectory, time)
+
+
+	# dataset statistics
+	def data_statistics(self, 
+		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		bagFile = '0', 
+		eventRateTh = 0.01):
+
+		# bagFile path
+		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
+
+		# counter of events
+		self.eventRate = []
+
+		# counters
+		cnt = 0
+		self.times = None
+		self.cnt   = None
+		self.Flag  = False
+		self.rate  = []
+
+		# open the rosbag file and process the events
+		bag = rosbag.Bag(self.bagFilePath)
+		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+		    for e in msg.events:
+
+		    	# event timestep
+				ts = int(e.ts.to_nsec() / 1000.0)
+
+				# initialize the vector
+				if self.times == None:
+					self.times = [ts]
+					self.cnt   = [1]
+				elif self.times[cnt] != ts:
+
+					sys.stdout.write('\r' + '{0}\r'.format(ts/10.0**6,))
+					sys.stdout.flush()
+
+					cnt += 1
+					self.times.append(ts)
+					self.cnt.append(1)
+					self.Flag = True
+				else:
+					self.cnt[cnt] += 1
+
+				if self.Flag == True:
+					self.Flag = False
+					counter = 0
+					for i in range(len(self.times)-1,-1,-1):
+						if self.times[-1] - self.times[i] <= eventRateTh*10**6:
+							counter += self.cnt[i]
+						else:
+							break
+					self.rate.append(counter)
+		    
+		# close the bagfile
+		bag.close()
+
+		# write results
+		with open('/media/fedepare/Datos/Ubuntu/Projects/bagfiles/circle_rate.txt', 'w') as text_file:
+			for i in xrange(0, len(self.rate)):
+		 		text_file.write("%.6f\n" % (self.rate[i]))
+
+		return self.rate
 
 
 	# compute ventral flow information from the trajectory of the camera
@@ -85,7 +154,9 @@ class dataset():
 		imtype = 'temporal', 
 		expScale = 0.0001, 
 		expTime = 'us',
-		datasetFolder = 'images'):
+		datasetFolder = 'images',
+		blur = False, 
+		eventRateTh = 0.1):
 
 		# bagFile path
 		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
@@ -103,7 +174,11 @@ class dataset():
 			accumEvents = np.zeros((128, 128), dtype=np.uint8)
 			accumEvents.fill(127) # gray canvas
 
-		if imtype == 'split_normal': 
+		elif imtype == 'normal_mono': 
+			accumEvents = np.zeros((128, 128), dtype=np.uint8)
+			accumEvents.fill(0) # black canvas
+
+		elif imtype == 'split_normal': 
 			accumEventsON = np.zeros((128, 128), dtype=np.uint8)
 			accumEventsON.fill(0) # black canvas
 			accumEventsOFF = np.zeros((128, 128), dtype=np.uint8)
@@ -163,7 +238,10 @@ class dataset():
 						else:
 							accumEvents[e.y, e.x] = 0
 
-					if imtype == 'split_normal':
+					elif imtype == 'normal_mono':
+						accumEvents[e.y, e.x] = 255
+
+					elif imtype == 'split_normal':
 						if p == '1':
 							accumEventsON[e.y, e.x] = 255
 						else:
@@ -218,6 +296,12 @@ class dataset():
 						img = Image.fromarray(storeEvents)
 						img.save(imgDir + str(imgCnt) + '.png')
 
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
 					elif imtype == 'split_temporal':
 
 						# time difference with respect to the event that triggers the image generation
@@ -241,6 +325,15 @@ class dataset():
 						img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
 						img = Image.fromarray(storeEventsOFF)
 						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
+							img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
 	
 					elif imtype == 'normal':
 
@@ -248,9 +341,31 @@ class dataset():
 						img = Image.fromarray(accumEvents)
 						img.save(imgDir + str(imgCnt) + '.png')
 
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
 						# reset the image
 						accumEvents = np.zeros((128, 128), dtype=np.uint8)
 						accumEvents.fill(127)
+
+					elif imtype == 'normal_mono':
+
+						# save the image
+						img = Image.fromarray(accumEvents)
+						img.save(imgDir + str(imgCnt) + '.png')
+
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
+						# reset the image
+						accumEvents = np.zeros((128, 128), dtype=np.uint8)
+						accumEvents.fill(0)
 
 					elif imtype == 'split_normal':
 
@@ -259,6 +374,15 @@ class dataset():
 						img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
 						img = Image.fromarray(accumEventsOFF)
 						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
+							img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
 
 						# reset the image
 						accumEventsON = np.zeros((128, 128), dtype=np.uint8)
@@ -279,6 +403,12 @@ class dataset():
 						img = Image.fromarray(storeEvents)
 						img.save(imgDir + str(imgCnt) + '.png')
 
+						# blur the image?
+						if blur == True:
+							img = cv2.imread(imgDir + str(imgCnt) + '.png')
+							img = cv2.GaussianBlur(img,(5,5),0)
+							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
 					# accumulate events in an image
 					if imtype == 'normal':
 						if p == '1':
@@ -286,7 +416,10 @@ class dataset():
 						else:
 							accumEvents[e.y, e.x] = 0
 
-					if imtype == 'split_normal':
+					elif imtype == 'normal_mono':
+						accumEvents[e.y, e.x] = 255
+
+					elif imtype == 'split_normal':
 						if p == '1':
 							accumEventsON[e.y, e.x] = 255
 						else:
@@ -333,6 +466,12 @@ class dataset():
 			img = Image.fromarray(storeEvents)
 			img.save(imgDir + str(imgCnt) + '.png')
 
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
 		elif imtype == 'split_temporal':
 
 			# time difference with respect to the event that triggers the image generation
@@ -357,9 +496,34 @@ class dataset():
 			img = Image.fromarray(storeEventsOFF)
 			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
 
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
+				img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
+
 		elif imtype == 'normal':
 			img = Image.fromarray(accumEvents)
 			img.save(imgDir + str(imgCnt) + '.png')
+
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
+		elif imtype == 'normal_mono':
+			img = Image.fromarray(accumEvents)
+			img.save(imgDir + str(imgCnt) + '.png')
+
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
 
 		elif imtype == 'split_normal':
 
@@ -368,6 +532,15 @@ class dataset():
 			img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
 			img = Image.fromarray(accumEventsOFF)
 			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
+				img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
 
 		elif imtype == 'temp_mono':
 			if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
@@ -381,6 +554,13 @@ class dataset():
 			# save the image
 			img = Image.fromarray(storeEvents)
 			img.save(imgDir + str(imgCnt) + '.png')
+
+			# blur the image?
+			if blur == True:
+				img = cv2.imread(imgDir + str(imgCnt) + '.png')
+				img = cv2.GaussianBlur(img,(5,5),0)
+				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+
 
 		# close the bagfile
 		bag.close()
