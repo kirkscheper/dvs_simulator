@@ -104,6 +104,6 @@ leg.set_bbox_to_anchor(bb, transform = ax.transAxes)
 plt.tight_layout()
 
 f.set_rasterized(True)
-plt.savefig('/home/fedepare/Preliminary Thesis Report/Include/images/polar.eps', dpi=255)
+#plt.savefig('/home/fedepare/Preliminary Thesis Report/Include/images/polar.eps', dpi=255)
 
 plt.show()

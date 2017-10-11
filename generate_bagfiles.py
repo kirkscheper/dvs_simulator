@@ -98,9 +98,9 @@ for dataIdx in xrange(0, len(x_)):
 		 		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(traj[i, 0]), traj[i, 1], traj[i, 2], traj[i, 3], traj[i, 4], traj[i, 5], traj[i, 6], traj[i, 7]))
 
  	 	# run the simulator
- 	 	run_simulator(texture = 'checkerboard')
+ 	 	run_simulator(texture = 'natural')
  		path = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles'
-		data = dataset(path, folderName = 'deleteeeeeeeeee_' + str(folders[dataIdx]))
+		data = dataset(path, folderName = str(folders[dataIdx]))
 		data.copy_bagfile(trajectory = traj, time = int(t_))
 
 		# clean data generated

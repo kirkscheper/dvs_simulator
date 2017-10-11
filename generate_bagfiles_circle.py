@@ -19,12 +19,12 @@ t_ = 6000
 # circle
 x_  = []
 y_  = []
-alt = 0.5
-folders = 'circle_checker_150'
+alt = 1.0
+folders = 'circle_altitude_100'
 th = np.linspace(0, 2*np.pi, t_)
 for i in xrange(0,len(th)):
-	x_.append(xStart + 1.50*np.cos(th[i]))
-	y_.append(yStart + 1.50*np.sin(th[i]))
+	x_.append(xStart + 1.00*np.cos(th[i]))
+	y_.append(yStart + 1.00*np.sin(th[i]))
 
 # allocate memory for the trajectory array
 traj 		= np.zeros((50000, 8))
@@ -56,7 +56,7 @@ with open(os.getcwd() + "/src/rpg_davis_simulator/datasets/scenes/customTraj.txt
  		text_file.write("%i %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n" % (int(traj[i, 0]), traj[i, 1], traj[i, 2], traj[i, 3], traj[i, 4], traj[i, 5], traj[i, 6], traj[i, 7]))
 
 # run the simulator
-run_simulator(texture = 'checkerboard')
+run_simulator(texture = 'roadmap')
 path = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles'
 data = dataset(path, folderName = folders)
 data.copy_bagfile(trajectory = traj, time = int(t_))
