@@ -8,5 +8,4 @@ logs/
 aedat/
 .catkin_tools/
 .catkin_workspace
-src/rpg_davis_simulator/datasets/full_datasets
 src/rpg_davis_simulator/datasets/rosbags
