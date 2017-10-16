@@ -1,6 +1,7 @@
 ## rpg_dvs_simulator.py
 
 Follow the instructions [here](https://github.com/uzh-rpg/rpg_davis_simulator) for the installation of this simulator.
+NOTE: Do not forget to source your catking workspace!!!!
 
 ## file description
 
