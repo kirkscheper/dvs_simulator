@@ -11,6 +11,7 @@ from math import floor
 from PIL import Image
 
 
+# render Blender scene and simulate DVS
 def run_simulator(texture = 'roadmap'):
 	if texture == 'roadmap':
 		os.system("roslaunch dvs_simulator_py custom_render.launch")
@@ -28,6 +29,7 @@ def run_simulator(texture = 'roadmap'):
 
 class dataset():
 
+
 	# constructor
 	def __init__(self, path, folderName = None):
 
@@ -36,6 +38,7 @@ class dataset():
 
 		# name of the folder
 		self.folderName = folderName
+
 
 	# get the most recent bagfile, move it, rename it, and generate ground truth information
 	def copy_bagfile(self, trajectory = None, time = None):
@@ -75,38 +78,16 @@ class dataset():
 		self.generate_ventralFlow(trajectory, time)
 
 
-	# dataset statistics
-	def data_statistics(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
-		bagFile = '0', 
-		eventRateTh = 0.01):
+	# compute ventral flow information from the trajectory of the camera
+	def generate_ventralFlow(self, traj, idx):
 
-		# bagFile path
-		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
-
-		# counter of events
-		self.eventRate = []
-
-		# counters
-		cnt = 0
-		self.times = None
-		self.cnt   = None
-		self.Flag  = False
-		self.rate  = []
-
-		# open the rosbag file and process the events
-		bag = rosbag.Bag(self.bagFilePath)
-		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-		    for e in msg.events:
-
-		    	cnt += 1
-		    
-		# close the bagfile
-		bag.close()
-
-		return cnt
+		# write the txt file
+		with open(self.path + '/' + self.folderName + '/ventral_flow.txt', 'w') as text_file:
+			for i in xrange(0, idx):
+		 		text_file.write("%i %.6f %.6f %.6f\n" % (i+1, -(traj[i+1, 1]-traj[i, 1])*1000/traj[i, 3], -(traj[i+1, 2]-traj[i, 2])*1000/traj[i, 3], 0))
 
 
+	# generate .aedat files
 	def generate_aedat(self, 
 		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
 		bagFile = '0', 
@@ -131,7 +112,6 @@ class dataset():
 		file.write('# Timestamps tick is 1 us\r\n');
 
 		# open the rosbag file and process the events
-		cnt = 0
 		bag = rosbag.Bag(self.bagFilePath)
 		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
 		    for e in msg.events:
@@ -145,16 +125,15 @@ class dataset():
 		        # write the event using big endian format
 		        file.write("%s" % struct.pack('>I', int(address, 2)))
 		        file.write("%s" % struct.pack('>I', int(ts)))
-		        if cnt == 0: print(address)
-		        cnt += 1
 
 		bag.close()
-		print cnt
+
 		# copy trajectory and ventral flow files
 		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + finalDir)
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + finalDir)
 
 
+	# write .csv files
 	def generate_csv(self, 
 		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
 		bagFile = '0', 
@@ -184,11 +163,13 @@ class dataset():
 		    	writer.writerow([ts, e.x, e.y, '1' if e.polarity else '0'])
 
 		bag.close()
+
 		# copy trajectory and ventral flow files
 		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + finalDir)
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + finalDir)
 
 
+	# generate .csv files
 	def generate_csv_64(self, 
 		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
 		bagFile = '0', 
@@ -223,50 +204,6 @@ class dataset():
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + finalDir)
 
 
-	def generate_csv_32(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
-		bagFile = '0', 
-		datasetFolder = 'images'):
-
-		# bagFile path
-		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
-
-		# name of the folder in the project directory
-		self.datasetFolder = datasetFolder
-
-		# check if the final directory exists
-		finalDir = self.path + '/' + self.datasetFolder + '/' + bagFile + '/'
-		if not os.path.exists(finalDir):
-			os.makedirs(finalDir)
-
-		# open the file
-		file   = open(finalDir + bagFile + ".csv", "w")
-		writer = csv.writer(file, delimiter=',')
-
-		# open the rosbag file and process the events
-		bag = rosbag.Bag(self.bagFilePath)
-		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-		    for e in msg.events:
-
-		    	ts = int(e.ts.to_nsec() / 1000.0)
-		    	writer.writerow([ts, e.x/4, e.y/4, '1' if e.polarity else '0'])
-
-		bag.close()
-		# copy trajectory and ventral flow files
-		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + finalDir)
-		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + finalDir)
-
-
-
-	# compute ventral flow information from the trajectory of the camera
-	def generate_ventralFlow(self, traj, idx):
-
-		# write the txt file
-		with open(self.path + '/' + self.folderName + '/ventral_flow.txt', 'w') as text_file:
-			for i in xrange(0, idx):
-		 		text_file.write("%i %.6f %.6f %.6f\n" % (i+1, -(traj[i+1, 1]-traj[i, 1])*1000/traj[i, 3], -(traj[i+1, 2]-traj[i, 2])*1000/traj[i, 3], 0))
-
-
 	# process the stored bagfiles and generate images in the desired directory
 	def generate_images(self, 
 		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
@@ -293,29 +230,30 @@ class dataset():
 		# initialize the image
 		if imtype == 'normal': 
 			accumEvents = np.zeros((128, 128), dtype=np.uint8)
-			accumEvents.fill(127) # gray canvas
+			timeEvents  = np.zeros((128, 128))
+			accumEvents.fill(127)
 
 		elif imtype == 'normal_mono': 
 			accumEvents = np.zeros((128, 128), dtype=np.uint8)
-			accumEvents.fill(0) # black canvas
+			timeEvents  = np.zeros((128, 128))
+			accumEvents.fill(0)
 
 		elif imtype == 'split_normal': 
-			accumEventsON = np.zeros((128, 128), dtype=np.uint8)
-			accumEventsON.fill(0) # black canvas
+			accumEventsON  = np.zeros((128, 128), dtype=np.uint8)
+			accumEventsON.fill(0)
 			accumEventsOFF = np.zeros((128, 128), dtype=np.uint8)
-			accumEventsOFF.fill(0) # black canvas
+			accumEventsOFF.fill(0)
+			timeEventsON   = np.zeros((128, 128))
+			timeEventsOFF  = np.zeros((128, 128))
 
 			# extra directories
 			if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
 			if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
 
-			cntEvents = 0
-			cntEventspImg = []
-
 		elif imtype == 'temporal':
-			accumEvents = np.zeros((128, 128), dtype=np.uint8)
-			accumEvents.fill(127) # gray canvas
-			storeEvents = np.zeros((128, 128), dtype=np.uint8)
+			accumEvents  = np.zeros((128, 128), dtype=np.uint8)
+			accumEvents.fill(127)
+			storeEvents  = np.zeros((128, 128), dtype=np.uint8)
 			timeEvents   = np.zeros((128, 128))
 			expMatrix    = np.full((128, 128), -expScale)
 			refIntensity = np.full((128, 128), 127)
@@ -323,37 +261,25 @@ class dataset():
 		elif imtype == 'split_temporal':
 			accumEventsON  = np.zeros((128, 128), dtype=np.uint8)
 			accumEventsOFF = np.zeros((128, 128), dtype=np.uint8)
-			accumEventsON.fill(0)  # black canvas
-			accumEventsOFF.fill(0) # black canvas
+			accumEventsON.fill(0)
+			accumEventsOFF.fill(0)
 			storeEventsON  = np.zeros((128, 128), dtype=np.uint8)
 			storeEventsOFF = np.zeros((128, 128), dtype=np.uint8)
-			timeEventsON  = np.zeros((128, 128))
-			timeEventsOFF = np.zeros((128, 128))
-			expMatrix     = np.full((128, 128), -expScale)
+			timeEventsON   = np.zeros((128, 128))
+			timeEventsOFF  = np.zeros((128, 128))
+			expMatrix      = np.full((128, 128), -expScale)
 
 			# extra directories
 			if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
 			if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
 
 		elif imtype == 'temp_mono':
-			accumEvents = np.zeros((128, 128), dtype=np.uint8)
-			accumEvents.fill(0) # gray canvas
-			storeEvents = np.zeros((128, 128), dtype=np.uint8)
+			accumEvents  = np.zeros((128, 128), dtype=np.uint8)
+			accumEvents.fill(0)
+			storeEvents  = np.zeros((128, 128), dtype=np.uint8)
 			timeEvents   = np.zeros((128, 128))
 			expMatrix    = np.full((128, 128), -expScale)
-
-		elif imtype == 'split_normal_new': 
-			accumEventsON = np.zeros((128, 128), dtype=np.uint8)
-			accumEventsON.fill(0) # black canvas
-			accumEventsOFF = np.zeros((128, 128), dtype=np.uint8)
-			accumEventsOFF.fill(0) # black canvas
-			timeEventsON  = np.zeros((128, 128))
-			timeEventsOFF = np.zeros((128, 128))
-
-			# extra directories
-			if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
-			if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
-		
+	
 		# images generated
 		imgCnt = 0
 		
@@ -366,67 +292,94 @@ class dataset():
 				ts = int(e.ts.to_nsec() / 1000.0)
 				p  = '1' if e.polarity else '0'
 
-		        # accumulate events in an image
-				if imtype == 'split_normal_new' and ts / 1000 == imgCnt:
-					if p == '1':
-						timeEventsON[e.y, e.x] = ts
-					else:
-						timeEventsOFF[e.y, e.x] = ts
+				# update matrices
+				if ts / 1000 == imgCnt:
 
-				elif ts / accumTime == imgCnt and imtype != 'split_normal_new':
 					if imtype == 'normal':
-						if p == '1':
-							accumEvents[e.y, e.x] = 255
-						else:
-							accumEvents[e.y, e.x] = 0
+
+						if p == '1': accumEvents[e.y, e.x] = 255
+						else:        accumEvents[e.y, e.x] = 0
+						timeEvents[e.y, e.x] = ts
 
 					elif imtype == 'normal_mono':
+
 						accumEvents[e.y, e.x] = 255
+						timeEvents[e.y, e.x]  = ts
 
 					elif imtype == 'split_normal':
-						if p == '1':
-							accumEventsON[e.y, e.x] = 255
-						else:
-							accumEventsOFF[e.y, e.x] = 255
 
-						cntEvents += 1
+						if p == '1': timeEventsON[e.y, e.x]  = ts
+						else:        timeEventsOFF[e.y, e.x] = ts
 
 					elif imtype == 'temporal':
 
 						# the exponential decay can be applied using ms or us scale
-						if expTime == 'ms': timeEvents[e.y, e.x] = ts/1000. # ms
-						elif expTime == 'us': timeEvents[e.y, e.x] = ts     # us
+						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
+						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						
-						if p == '1':
-							accumEvents[e.y, e.x] = 255
-						else:
-							accumEvents[e.y, e.x] = 0
+						if p == '1': accumEvents[e.y, e.x] = 255
+						else:        accumEvents[e.y, e.x] = 0
 
 					elif imtype == 'split_temporal':
+
 						if p == '1':
-							if expTime == 'ms': timeEventsON[e.y, e.x] = ts/1000. # ms
-							elif expTime == 'us': timeEventsON[e.y, e.x] = ts     # us
+							if expTime == 'ms':   timeEventsON[e.y, e.x] = ts/1000. # ms
+							elif expTime == 'us': timeEventsON[e.y, e.x] = ts       # us
 							accumEventsON[e.y, e.x] = 255
 						else:
-							if expTime == 'ms': timeEventsOFF[e.y, e.x] = ts/1000. # ms
-							elif expTime == 'us': timeEventsOFF[e.y, e.x] = ts     # us
+							if expTime == 'ms':   timeEventsOFF[e.y, e.x] = ts/1000. # ms
+							elif expTime == 'us': timeEventsOFF[e.y, e.x] = ts       # us
 							accumEventsOFF[e.y, e.x] = 255
 
 					elif imtype == 'temp_mono':
 
 						# the exponential decay can be applied using ms or us scale
-						if expTime == 'ms': timeEvents[e.y, e.x] = ts/1000. # ms
-						elif expTime == 'us': timeEvents[e.y, e.x] = ts     # us
+						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
+						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						accumEvents[e.y, e.x] = 255
 
-				
 				else: # if the event under analysis belongs to a different image...
 
 					# counter
 					imgCnt += 1
 
-					# apply temporal decay if needed
-					if imtype == 'split_normal_new':
+					# generate images
+					if imtype == 'normal':
+
+						# check which events have to be included in the image
+						refTime  = np.full((128, 128), ts)
+						diffTime = np.subtract(refTime, timeEvents)
+
+						# update image
+						accumEvents[diffTime > accumTime] = 127
+
+						# save the image
+						img = Image.fromarray(accumEvents)
+						img.save(imgDir + str(imgCnt) + '.png')
+
+						# include this event
+						if p == '1': accumEvents[e.y, e.x] = 255
+						else:        accumEvents[e.y, e.x] = 0
+						timeEvents[e.y, e.x] = ts
+
+					elif imtype == 'normal_mono':
+
+						# check which events have to be included in the image
+						refTime  = np.full((128, 128), ts)
+						diffTime = np.subtract(refTime, timeEvents)
+
+						# update image
+						accumEvents[diffTime > accumTime] = 0
+
+						# save the image
+						img = Image.fromarray(accumEvents)
+						img.save(imgDir + str(imgCnt) + '.png')
+
+						# include this event
+						accumEvents[e.y, e.x] = 255
+						timeEvents[e.y, e.x]  = ts
+
+					elif imtype == 'split_normal':
 
 						# check which events have to be included in the image
 						refTime     = np.full((128, 128), ts)
@@ -435,7 +388,7 @@ class dataset():
 
 						accumEventsON.fill(0)
 						accumEventsOFF.fill(0)
-						accumEventsON[diffTimeON <= accumTime] = 255
+						accumEventsON[diffTimeON <= accumTime]   = 255
 						accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
 						# save the image
@@ -444,10 +397,17 @@ class dataset():
 						img = Image.fromarray(accumEventsOFF)
 						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
 
+						# include this event
+						if p == '1': timeEventsON[e.y, e.x]  = ts
+						else:        timeEventsOFF[e.y, e.x] = ts
+
 					elif imtype == 'temporal':
-						if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-						elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
+
+						# reference time
+						if expTime == 'ms': refTime   = np.full((128, 128), ts/1000.) # ms
+						elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
 						
+						# exponential decay of the image
 						diffTime     = np.subtract(refTime, timeEvents)
 						expFactor    = np.exp(np.multiply(expMatrix, diffTime))
 						relIntensity = np.subtract(accumEvents, refIntensity)
@@ -458,29 +418,29 @@ class dataset():
 						img = Image.fromarray(storeEvents)
 						img.save(imgDir + str(imgCnt) + '.png')
 
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
+						# include this event
+						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
+						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
+						if p == '1': accumEvents[e.y, e.x] = 255
+						else:        accumEvents[e.y, e.x] = 0
 
 					elif imtype == 'split_temporal':
 
-						# time difference with respect to the event that triggers the image generation
-						if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-						elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
+						# reference time
+						if expTime == 'ms':   refTime = np.full((128, 128), ts/1000.) # ms
+						elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
 
 						# ON events
-						diffTime     = np.subtract(refTime, timeEventsON)
-						expFactor    = np.exp(np.multiply(expMatrix, diffTime))
-						storeEventsON  = np.multiply(accumEventsON, expFactor)
-						storeEventsON  = np.asarray(storeEventsON, dtype=np.uint8)
+						diffTime      = np.subtract(refTime, timeEventsON)
+						expFactor     = np.exp(np.multiply(expMatrix, diffTime))
+						storeEventsON = np.multiply(accumEventsON, expFactor)
+						storeEventsON = np.asarray(storeEventsON, dtype=np.uint8)
 
 						# OFF events
-						diffTime     = np.subtract(refTime, timeEventsOFF)
-						expFactor    = np.exp(np.multiply(expMatrix, diffTime))
-						storeEventsOFF  = np.multiply(accumEventsOFF, expFactor)
-						storeEventsOFF  = np.asarray(storeEventsOFF, dtype=np.uint8)
+						diffTime       = np.subtract(refTime, timeEventsOFF)
+						expFactor      = np.exp(np.multiply(expMatrix, diffTime))
+						storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
+						storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
 						# save the image
 						img = Image.fromarray(storeEventsON)
@@ -488,77 +448,23 @@ class dataset():
 						img = Image.fromarray(storeEventsOFF)
 						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
 
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
-							img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
-	
-					elif imtype == 'normal':
-
-						# save the image
-						img = Image.fromarray(accumEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
-
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-						# reset the image
-						accumEvents = np.zeros((128, 128), dtype=np.uint8)
-						accumEvents.fill(127)
-
-					elif imtype == 'normal_mono':
-
-						# save the image
-						img = Image.fromarray(accumEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
-
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-						# reset the image
-						accumEvents = np.zeros((128, 128), dtype=np.uint8)
-						accumEvents.fill(0)
-
-					elif imtype == 'split_normal':
-
-						cntEventspImg.append(cntEvents)
-						cntEvents = 0
-
-						# save the image
-						img = Image.fromarray(accumEventsON)
-						img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
-						img = Image.fromarray(accumEventsOFF)
-						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
-
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
-							img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
-
-						# reset the image
-						accumEventsON = np.zeros((128, 128), dtype=np.uint8)
-						accumEventsON.fill(0)
-						accumEventsOFF = np.zeros((128, 128), dtype=np.uint8)
-						accumEventsOFF.fill(0)
+						# include this event
+						if p == '1':
+							if expTime == 'ms':   timeEventsON[e.y, e.x] = ts/1000. # ms
+							elif expTime == 'us': timeEventsON[e.y, e.x] = ts       # us
+							accumEventsON[e.y, e.x] = 255
+						else:
+							if expTime == 'ms':   timeEventsOFF[e.y, e.x] = ts/1000. # ms
+							elif expTime == 'us': timeEventsOFF[e.y, e.x] = ts       # us
+							accumEventsOFF[e.y, e.x] = 255
 
 					elif imtype == 'temp_mono':
-						if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-						elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
 
+						# reference time
+						if expTime == 'ms':   refTime = np.full((128, 128), ts/1000.) # ms
+						elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
+
+						# exponential decay of the image
 						diffTime     = np.subtract(refTime, timeEvents)
 						expFactor    = np.exp(np.multiply(expMatrix, diffTime))
 						storeEvents  = np.multiply(accumEvents, expFactor)
@@ -568,73 +474,50 @@ class dataset():
 						img = Image.fromarray(storeEvents)
 						img.save(imgDir + str(imgCnt) + '.png')
 
-						# blur the image?
-						if blur == True:
-							img = cv2.imread(imgDir + str(imgCnt) + '.png')
-							img = cv2.GaussianBlur(img,(5,5),0)
-							cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-					# accumulate events in an image
-					if imtype == 'split_normal_new' and ts / 1000 == imgCnt:
-						if p == '1':
-							timeEventsON[e.y, e.x] = ts
-						else:
-							timeEventsOFF[e.y, e.x] = ts
-
-					elif imtype == 'normal':
-						if p == '1':
-							accumEvents[e.y, e.x] = 255
-						else:
-							accumEvents[e.y, e.x] = 0
-
-					elif imtype == 'normal_mono':
+						# include this event
+						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
+						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						accumEvents[e.y, e.x] = 255
 
-					elif imtype == 'split_normal':
-						if p == '1':
-							accumEventsON[e.y, e.x] = 255
-						else:
-							accumEventsOFF[e.y, e.x] = 255
-
-						cntEvents += 1
-
-					elif imtype == 'temporal':
-						if expTime == 'ms': timeEvents[e.y, e.x] = ts/1000. # ms
-						elif expTime == 'us': timeEvents[e.y, e.x] = ts     # us
-						
-						if p == '1':
-							accumEvents[e.y, e.x] = 255
-						else:
-							accumEvents[e.y, e.x] = 0
-
-					elif imtype == 'split_temporal':
-						if p == '1':
-							if expTime == 'ms': timeEventsON[e.y, e.x] = ts/1000. # ms
-							elif expTime == 'us': timeEventsON[e.y, e.x] = ts     # us
-							accumEventsON[e.y, e.x] = 255
-						else:
-							if expTime == 'ms': timeEventsOFF[e.y, e.x] = ts/1000. # ms
-							elif expTime == 'us': timeEventsOFF[e.y, e.x] = ts     # us
-							accumEventsOFF[e.y, e.x] = 255
-
-					elif imtype == 'temp_mono':
-						if expTime == 'ms': timeEvents[e.y, e.x] = ts/1000. # ms
-						elif expTime == 'us': timeEvents[e.y, e.x] = ts     # us
-						accumEvents[e.y, e.x] = 255
-
-		# counter
+		# store final image
 		imgCnt += 1
 
-		if imtype == 'split_normal_new':
+		if imtype == 'normal':
+
+			# check which events have to be included in the image
+			refTime  = np.full((128, 128), ts)
+			diffTime = np.subtract(refTime, timeEvents)
+
+			# update image
+			accumEvents[diffTime > accumTime] = 127
+
+			# save the image
+			img = Image.fromarray(accumEvents)
+			img.save(imgDir + str(imgCnt) + '.png')
+
+		elif imtype == 'normal_mono':
+
+			# check which events have to be included in the image
+			refTime  = np.full((128, 128), ts)
+			diffTime = np.subtract(refTime, timeEvents)
+
+			# update image
+			accumEvents[diffTime > accumTime] = 0
+
+			# save the image
+			img = Image.fromarray(accumEvents)
+			img.save(imgDir + str(imgCnt) + '.png')
+
+		elif imtype == 'split_normal':
 
 			# check which events have to be included in the image
 			refTime     = np.full((128, 128), ts)
 			diffTimeON  = np.subtract(refTime, timeEventsON)
-			diffTimeOFF = np.subtract(refTime, timeEventsON)
+			diffTimeOFF = np.subtract(refTime, timeEventsOFF)
 
 			accumEventsON.fill(0)
 			accumEventsOFF.fill(0)
-			accumEventsON[diffTimeON <= accumTime] = 255
+			accumEventsON[diffTimeON <= accumTime]   = 255
 			accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
 			# save the image
@@ -644,9 +527,12 @@ class dataset():
 			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
 
 		elif imtype == 'temporal':
-			if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-			elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
 
+			# reference time
+			if expTime == 'ms': refTime   = np.full((128, 128), ts/1000.) # ms
+			elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
+			
+			# exponential decay of the image
 			diffTime     = np.subtract(refTime, timeEvents)
 			expFactor    = np.exp(np.multiply(expMatrix, diffTime))
 			relIntensity = np.subtract(accumEvents, refIntensity)
@@ -657,29 +543,23 @@ class dataset():
 			img = Image.fromarray(storeEvents)
 			img.save(imgDir + str(imgCnt) + '.png')
 
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
 		elif imtype == 'split_temporal':
 
-			# time difference with respect to the event that triggers the image generation
-			if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-			elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
+			# reference time
+			if expTime == 'ms':   refTime = np.full((128, 128), ts/1000.) # ms
+			elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
 
 			# ON events
-			diffTime     = np.subtract(refTime, timeEventsON)
-			expFactor    = np.exp(np.multiply(expMatrix, diffTime))
-			storeEventsON  = np.multiply(accumEventsON, expFactor)
-			storeEventsON  = np.asarray(storeEventsON, dtype=np.uint8)
+			diffTime      = np.subtract(refTime, timeEventsON)
+			expFactor     = np.exp(np.multiply(expMatrix, diffTime))
+			storeEventsON = np.multiply(accumEventsON, expFactor)
+			storeEventsON = np.asarray(storeEventsON, dtype=np.uint8)
 
 			# OFF events
-			diffTime     = np.subtract(refTime, timeEventsOFF)
-			expFactor    = np.exp(np.multiply(expMatrix, diffTime))
-			storeEventsOFF  = np.multiply(accumEventsOFF, expFactor)
-			storeEventsOFF  = np.asarray(storeEventsOFF, dtype=np.uint8)
+			diffTime       = np.subtract(refTime, timeEventsOFF)
+			expFactor      = np.exp(np.multiply(expMatrix, diffTime))
+			storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
+			storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
 			# save the image
 			img = Image.fromarray(storeEventsON)
@@ -687,62 +567,13 @@ class dataset():
 			img = Image.fromarray(storeEventsOFF)
 			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
 
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
-				img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
-
-		elif imtype == 'normal':
-			img = Image.fromarray(accumEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
-
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-		elif imtype == 'normal_mono':
-			img = Image.fromarray(accumEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
-
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-		elif imtype == 'split_normal':
-
-			cntEventspImg.append(cntEvents)
-			cntEvents = 0
-
-			print imgDir
-			print sum(cntEventspImg) / float(imgCnt)
-
-			# save the image
-			img = Image.fromarray(accumEventsON)
-			img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
-			img = Image.fromarray(accumEventsOFF)
-			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
-
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + 'ON/' + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + 'ON/' + str(imgCnt) + '.png', img)
-				img = cv2.imread(imgDir + 'OFF/' + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + 'OFF/' + str(imgCnt) + '.png', img)
-
 		elif imtype == 'temp_mono':
-			if expTime == 'ms': refTime = np.full((128, 128), ts/1000.) # ms
-			elif expTime == 'us': refTime = np.full((128, 128), ts)     # us
 
+			# reference time
+			if expTime == 'ms':   refTime = np.full((128, 128), ts/1000.) # ms
+			elif expTime == 'us': refTime = np.full((128, 128), ts)       # us
+
+			# exponential decay of the image
 			diffTime     = np.subtract(refTime, timeEvents)
 			expFactor    = np.exp(np.multiply(expMatrix, diffTime))
 			storeEvents  = np.multiply(accumEvents, expFactor)
@@ -752,86 +583,12 @@ class dataset():
 			img = Image.fromarray(storeEvents)
 			img.save(imgDir + str(imgCnt) + '.png')
 
-			# blur the image?
-			if blur == True:
-				img = cv2.imread(imgDir + str(imgCnt) + '.png')
-				img = cv2.GaussianBlur(img,(5,5),0)
-				cv2.imwrite(imgDir + str(imgCnt) + '.png', img)
-
-
 		# close the bagfile
 		bag.close()
 
 		# copy trajectory and ventral flow files
 		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + imgDir)
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
-
-
-	# process the stored bagfiles and generate images in the desired directory
-	def generate_meanflow_events(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
-		bagFile = '0', 
-		accumTime = 1000, 
-		imtype = 'temporal', 
-		expScale = 0.0001, 
-		expTime = 'us',
-		datasetFolder = 'images',
-		blur = False, 
-		eventRateTh = 0.1):
-
-		# bagFile path
-		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
-
-		# name of the folder in the project directory
-		self.datasetFolder = datasetFolder
-
-		# initialization
-		cntEvents = 0
-		cntEventspImg = []
-		
-		# images generated
-		imgCnt = 0
-		
-		# open the rosbag file and process the events
-		bag = rosbag.Bag(self.bagFilePath)
-		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-		    for e in msg.events:
-
-		    	# event data
-				ts = int(e.ts.to_nsec() / 1000.0)
-				p  = '1' if e.polarity else '0'
-				
-				if ts / accumTime == imgCnt:
-					cntEvents += 1
-				
-				else: # if the event under analysis belongs to a different image...
-
-					# counter
-					imgCnt += 1
-
-					cntEventspImg.append(cntEvents)
-					cntEvents = 0	
-
-					# accumulate events in an image
-					if ts / 1000 == imgCnt:
-						cntEvents += 1
-
-		# close the bagfile
-		bag.close()
-
-		# counter
-		imgCnt += 1
-
-		cntEventspImg.append(cntEvents)
-		cntEvents = 0
-
-		print bagFile
-		venFlow = np.loadtxt(pathFrom + '/' + bagFile + '/ventral_flow.txt')
-
-		with open('medianflow_events.csv','ab') as f:
-			writer=csv.writer(f)
-			row = [bagFile, str(sum(cntEventspImg) / float(imgCnt)), str(fabs(venFlow[0,1])), str(fabs(venFlow[0,2]))]
-			writer.writerow(row)
 
 
 	# process the stored bagfiles and generate images in the desired directory
@@ -849,11 +606,6 @@ class dataset():
 
 		# check if the final directory exists
 		imgDir = self.path + '/' + self.datasetFolder + '/' + bagFile + '/'
-		
-		# check if we really need to do this
-		# if os.path.exists(imgDir):
-		# 	if os.path.isfile(imgDir + 'delta_t.csv') + os.path.isfile(imgDir + 'ventral_flow.txt'):
-		# 		return
 
 		# continue
 		if not os.path.exists(imgDir):

@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 
-""" 
-Author: F. Paredes Valles
-Created: 27-06-2017
-"""
-
 import os
 import shutil
 from dataset_bagfiles import *
-
 
 # Start at
 Start = 0
