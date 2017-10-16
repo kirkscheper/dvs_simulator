@@ -1,15 +1,5 @@
 #!/usr/bin/env python
 
-""" 
-clean.py is a Python script that deletes the files that have been 
-generated using the rpg_davis_simulator [1] and the run.py script after it.
-
-[1] rpg_davis_simulator: https://github.com/uzh-rpg/rpg_davis_simulator
-
-Author: F. Paredes Valles
-Created: 05-05-2017
-"""
-
 import os
 import shutil
 
