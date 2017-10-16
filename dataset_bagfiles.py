@@ -841,7 +841,6 @@ class dataset():
 		datasetFolder = 'images',
 		variance_obj = 0.05):
 
-
 		# bagFile path
 		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
 

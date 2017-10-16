@@ -29,7 +29,6 @@ t_ = 1000.0 # ms
 thDelta = 15
 thEnd   = (360-thDelta)*np.pi/180.0
 th      = np.linspace(0, thEnd, num=360/15)
-th = [30 * np.pi/180.0]
 
 # velocity vector
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
