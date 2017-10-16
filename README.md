@@ -3,6 +3,7 @@
 Follow the instructions [here](https://github.com/uzh-rpg/rpg_davis_simulator) for the installation of this simulator.
 
 NOTE: Do not forget to source your catking workspace!!!!
+
 NOTE 2: Substitute $path_to_your_catkin_ws$/src/rpg_davis_simulator/datasets and $path_to_your_catkin_ws$/src/rpg_davis_simulator/launch with the folders of this repository.
 
 ## file description
