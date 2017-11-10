@@ -230,25 +230,28 @@ class dataset():
 		datasetFolder = 'images',
 		blur = False, 
 		eventRateTh = 0.1,
-		imageSkip = 1):
+		imageSkip = 1,
+		imgCnt = 0,
+		store_imgs = True):
 
 		# bagFile path
 		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
 		
 		if not os.path.exists(self.bagFilePath):
-			print self.bagFilePath + ' empty, skipping.'
-			return
+			print self.bagFilePath + ' does not exist, skipping.'
+			return -1
 
 		# name of the folder in the project directory
 		self.datasetFolder = datasetFolder
 
-		# check if the final directory exists
-		imgDir = self.path + '/' + self.datasetFolder + '/' + bagFile + '/'
-		if os.path.exists(imgDir):
-			print imgDir + ' already exsists, skipping.'
-			return
-			
-		os.makedirs(imgDir)
+		if store_imgs:
+			# check if the final directory exists
+			imgDir = self.path + '/' + self.datasetFolder + '/' + bagFile + '/'
+			if os.path.exists(imgDir):
+				print imgDir + ' already exsists, skipping.'
+				return -1
+				
+			os.makedirs(imgDir)
 
 		# initialize the image
 		if imtype == 'normal': 
@@ -269,9 +272,10 @@ class dataset():
 			timeEventsON   = np.zeros((128, 128))
 			timeEventsOFF  = np.zeros((128, 128))
 
-			# extra directories
-			if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
-			if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
+			if store_imgs:
+				# extra directories
+				if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
+				if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
 
 		elif imtype == 'temporal':
 			accumEvents  = np.zeros((128, 128), dtype=np.uint8)
@@ -292,9 +296,10 @@ class dataset():
 			timeEventsOFF  = np.zeros((128, 128))
 			expMatrix      = np.full((128, 128), -expScale)
 
-			# extra directories
-			if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
-			if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
+			if store_imgs:
+				# extra directories
+				if not os.path.exists(imgDir + 'ON/'): os.makedirs(imgDir + 'ON/')
+				if not os.path.exists(imgDir + 'OFF/'): os.makedirs(imgDir + 'OFF/')
 
 		elif imtype == 'temp_mono':
 			accumEvents  = np.zeros((128, 128), dtype=np.uint8)
@@ -303,15 +308,12 @@ class dataset():
 			timeEvents   = np.zeros((128, 128))
 			expMatrix    = np.full((128, 128), -expScale)
 	
-		# images generated
-		imgCnt = 0
-		
 		# open the rosbag file and process the events
 		bag = rosbag.Bag(self.bagFilePath)
 		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-		    for e in msg.events:
+			for e in msg.events:
 
-		    # event data
+				# event data
 				ts = int(e.ts.to_nsec() / 1000.0)
 				p  = '1' if e.polarity else '0'
 
@@ -361,8 +363,7 @@ class dataset():
 						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						accumEvents[e.y, e.x] = 255
 
-				else: # if the event under analysis belongs to a different image...
-
+				elif ts / (1000 * imageSkip) > imgCnt: # if the event under analysis belongs to a different image...
 					# counter
 					imgCnt += 1
 					filename = str(imgCnt) + '.png'
@@ -379,7 +380,8 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(accumEvents)
-						img.save(imgDir + filename)
+						if store_imgs:
+							img.save(imgDir + filename)
 
 						# include this event
 						if p == '1': accumEvents[e.y, e.x] = 255
@@ -397,7 +399,8 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(accumEvents)
-						img.save(imgDir + filename)
+						if store_imgs:
+							img.save(imgDir + filename)
 
 						# include this event
 						accumEvents[e.y, e.x] = 255
@@ -415,6 +418,7 @@ class dataset():
 						accumEventsON[diffTimeON <= accumTime]   = 255
 						accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
+						#TODO FIX
 						# save the image
 						img = Image.fromarray(accumEventsON)
 						img.save(imgDir + 'ON/' + filename)
@@ -440,7 +444,8 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(storeEvents)
-						img.save(imgDir + filename)
+						if store_imgs:
+							img.save(imgDir + filename)
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
@@ -466,6 +471,7 @@ class dataset():
 						storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
 						storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
+						# TODO FIX
 						# save the image
 						img = Image.fromarray(storeEventsON)
 						img.save(imgDir + 'ON/' + filename)
@@ -496,12 +502,16 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(storeEvents)
-						img.save(imgDir + filename)
+						if store_imgs:
+							img.save(imgDir + filename)
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
 						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						accumEvents[e.y, e.x] = 255
+					
+					bag.close()
+					return img
 
 		# store final image
 		imgCnt += 1
@@ -516,9 +526,10 @@ class dataset():
 			# update image
 			accumEvents[diffTime > accumTime] = 127
 
-			# save the image
 			img = Image.fromarray(accumEvents)
-			img.save(imgDir + filename)
+			if store_imgs:
+				# save the image
+				img.save(imgDir + filename)
 
 		elif imtype == 'normal_mono':
 
@@ -529,9 +540,10 @@ class dataset():
 			# update image
 			accumEvents[diffTime > accumTime] = 0
 
-			# save the image
 			img = Image.fromarray(accumEvents)
-			img.save(imgDir + filename)
+			if store_imgs:
+				# save the image
+				img.save(imgDir + filename)
 
 		elif imtype == 'split_normal':
 
@@ -545,11 +557,14 @@ class dataset():
 			accumEventsON[diffTimeON <= accumTime]   = 255
 			accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
-			# save the image
-			img = Image.fromarray(accumEventsON)
-			img.save(imgDir + 'ON/' + filename)
-			img = Image.fromarray(accumEventsOFF)
-			img.save(imgDir + 'OFF/' + filename)
+			img_on = Image.fromarray(accumEventsON)
+			img_off = Image.fromarray(accumEventsOFF)
+			if store_imgs:
+				# save the image
+				img_on.save(imgDir + 'ON/' + filename)
+				img.save(imgDir + 'OFF/' + filename)
+				
+			img = [img_on, img_off]	# TODO DEBUG, should be stacked images
 
 		elif imtype == 'temporal':
 
@@ -564,9 +579,10 @@ class dataset():
 			storeEvents  = np.add(np.multiply(relIntensity, expFactor), refIntensity)
 			storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-			# save the image
 			img = Image.fromarray(storeEvents)
-			img.save(imgDir + filename)
+			if store_imgs:
+				# save the image
+				img.save(imgDir + filename)
 
 		elif imtype == 'split_temporal':
 
@@ -586,11 +602,15 @@ class dataset():
 			storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
 			storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
-			# save the image
-			img = Image.fromarray(storeEventsON)
-			img.save(imgDir + 'ON/' + filename)
-			img = Image.fromarray(storeEventsOFF)
-			img.save(imgDir + 'OFF/' + filename)
+			img_on = Image.fromarray(storeEventsON)
+			img_off = Image.fromarray(storeEventsOFF)
+			
+			if store_imgs:
+				# save the image
+				img_on.save(imgDir + 'ON/' + filename)
+				img_off.save(imgDir + 'OFF/' + filename)
+			
+			img = [img_on, img_off]	# TODO DEBUG, should be stacked images
 
 		elif imtype == 'temp_mono':
 
@@ -604,41 +624,45 @@ class dataset():
 			storeEvents  = np.multiply(accumEvents, expFactor)
 			storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-			# save the image
 			img = Image.fromarray(storeEvents)
-			img.save(imgDir + filename)
+			if store_imgs:
+				# save the image
+				img.save(imgDir + filename)
 
 		# close the bagfile
 		bag.close()
 		
-		if imageSkip == 1:
-			# copy trajectory and ventral flow files
-			os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + imgDir)
-			os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
-		else:
-			ifile  = open(pathFrom + '/' + bagFile + '/trajectory.txt', "r")
-			reader = csv.reader(ifile, delimiter=' ')
-			ofile  = open(imgDir+'/trajectory.txt', "wb")
-			writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
-			
-			i = 0
-			for row in reader:
-				if i % imageSkip == 0:
-					row[0] = i / imageSkip + 1
-					writer.writerow(row)
-				i = i + 1
-					
-			ifile  = open(pathFrom + '/' + bagFile + '/ventral_flow.txt', "r")
-			reader = csv.reader(ifile, delimiter=' ')
-			ofile  = open(imgDir+'/ventral_flow.txt', "wb")
-			writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
-			
-			i = 0
-			for row in reader:
-				if i % imageSkip == 0:
-					row[0] = i / imageSkip + 1
-					writer.writerow(row)
-				i = i + 1
+		if store_imgs:
+			if imageSkip == 1:
+				# copy trajectory and ventral flow files
+				os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + imgDir)
+				os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
+			else:
+				ifile  = open(pathFrom + '/' + bagFile + '/trajectory.txt', "r")
+				reader = csv.reader(ifile, delimiter=' ')
+				ofile  = open(imgDir+'/trajectory.txt', "wb")
+				writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
+				
+				i = 0
+				for row in reader:
+					if i % imageSkip == 0:
+						row[0] = i / imageSkip + 1
+						writer.writerow(row)
+					i = i + 1
+						
+				ifile  = open(pathFrom + '/' + bagFile + '/ventral_flow.txt', "r")
+				reader = csv.reader(ifile, delimiter=' ')
+				ofile  = open(imgDir+'/ventral_flow.txt', "wb")
+				writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
+				
+				i = 0
+				for row in reader:
+					if i % imageSkip == 0:
+						row[0] = i / imageSkip + 1
+						writer.writerow(row)
+					i = i + 1
+		
+		return img
 		
 	# process the stored bagfiles and generate images in the desired directory
 	def generate_images_cnst_variance(self, 
@@ -682,13 +706,13 @@ class dataset():
 		# open the rosbag file and process the events
 		bag = rosbag.Bag(self.bagFilePath)
 		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
-		    for e in msg.events:
+			for e in msg.events:
 
-		    	# event data
+				# event data
 				ts = int(e.ts.to_nsec() / 1000.0)
 				p  = '1' if e.polarity else '0'
 
-		        # accumulate events in an image
+				# accumulate events in an image
 				if ts / 1000 == imgCnt:
 					if p == '1': timeEventsON[e.y, e.x] = ts
 					else: timeEventsOFF[e.y, e.x] = ts
@@ -824,3 +848,18 @@ class dataset():
 
 		# copy trajectory and ventral flow files
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
+
+	def get_number_of_events(self, bagFilePath):
+		num_events = 0
+		bag = rosbag.Bag(bagFilePath)
+		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+			num_events += np.shape(msg.events)[0]
+		bag.close()
+		return num_events
+	
+	def get_duration_of_dataset_ms(self, bagFilePath):
+		bag = rosbag.Bag(bagFilePath)
+		ts = 0
+		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
+			ts = int((msg.events[-1]).ts.to_nsec() / 1000000.)
+		return ts

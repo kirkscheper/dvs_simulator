@@ -108,10 +108,10 @@ imtype    = 'temporal'	# (normal, normal_mono, split_normal, temporal, split_tem
 expScale  = 0.00025	# used with temporal images
 accumTime = 1000	# used with normal images
 
-if imgtype == 'temporal' or imgtype == 'split_temporal' or imgtype == 'temp_mono':
-	foldername = imgtype + '_' + str(int(expScale*1000000))
+if imtype == 'temporal' or imtype == 'split_temporal' or imtype == 'temp_mono':
+	foldername = imtype + '_' + str(int(expScale*1000000))
 else:
-	foldername = imgtype + '_' + str(accumTime)
+	foldername = imtype + '_' + str(accumTime)
 
 # get the images in parallel from the bagfiles
 num_cores = max(multiprocessing.cpu_count()-1, 1)
