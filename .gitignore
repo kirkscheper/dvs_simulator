@@ -8,3 +8,7 @@ logs/
 aedat/
 .catkin_tools/
 .catkin_workspace
+
+generated_datasets
+.project
+.pydevproject

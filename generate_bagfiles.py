@@ -4,6 +4,9 @@ import os
 import shutil
 from dataset_bagfiles import *
 
+# define set tpye (train, val, test)
+set_type = 'train'
+
 # Start at
 Start = 0
 
@@ -22,35 +25,29 @@ t_ = 1000.0 # ms
 # compute the angles
 thDelta = 15
 thEnd   = (360-thDelta)*np.pi/180.0
-th      = np.linspace(0, thEnd, num=360/15)
+th      = np.linspace(0, thEnd, num=360/thDelta)
 
 # velocity vector
 velocities = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5]
-velocities = [1.25]
 
 # initial positions
 xStart = [0, -1.5, 2]
 yStart = [0, -1.5, -0.5]
 
-xStart = [-1.5]
-yStart = [-1.5]
-
 
 # test for a fixed altitude of 0.5m
-cntData = 0
 alt     = 0.5
 folders = []
 for iii in xrange(0,len(xStart)):
-	for i in xrange(0,len(th)):
-		for ii in xrange(0,len(velocities)):
+	for ii in xrange(0,len(velocities)):
+		for i in xrange(0,len(th)):
 			x_.append(velocities[ii]*np.sin(th[i]))
 			y_.append(velocities[ii]*np.cos(th[i]))
 			z_.append(0)
 			xInit.append(xStart[iii])
 			yInit.append(yStart[iii])
 			zInit.append(alt)
-			folders.append(cntData)
-			cntData += 1
+			folders.append(set_type + '_straight' + str(xStart[iii]) + '_' + str(yStart[iii]) + '_' + str(velocities[ii]) + '_' + str(th[i]))
 
 # generate all the datasets
 for dataIdx in xrange(0, len(x_)):
@@ -92,7 +89,7 @@ for dataIdx in xrange(0, len(x_)):
 
  	 	# run the simulator
  	 	run_simulator(texture = 'natural')
- 		path = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles'
+ 		path = 'generated_datasets/bagfiles'
 		data = dataset(path, folderName = str(folders[dataIdx]))
 		data.copy_bagfile(trajectory = traj, time = int(t_))
 

@@ -1,5 +1,4 @@
 import os
-import cv2
 import sys
 import csv
 import glob
@@ -89,7 +88,7 @@ class dataset():
 
 	# generate .aedat files
 	def generate_aedat(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		pathFrom = 'bagfiles', 
 		bagFile = '0', 
 		datasetFolder = 'images'):
 
@@ -135,7 +134,7 @@ class dataset():
 
 	# write .csv files
 	def generate_csv(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		pathFrom = 'bagfiles', 
 		bagFile = '0', 
 		datasetFolder = 'images'):
 
@@ -171,7 +170,7 @@ class dataset():
 
 	# generate .csv files
 	def generate_csv_64(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		pathFrom = 'bagfiles', 
 		bagFile = '0', 
 		datasetFolder = 'images'):
 
@@ -203,29 +202,53 @@ class dataset():
 		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + finalDir)
 		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + finalDir)
 
+	def generate_data_set_csv(self, datasetFolder = 'images'):
+		
+		# get the name of the folders
+		folders = [name for name in os.listdir(datasetFolder) if os.path.isdir(datasetFolder+'/'+name)]
+
+		ofile  = open(datasetFolder+'/data_file.csv', "wb")
+		writer = csv.writer(ofile, delimiter=',', quoting=csv.QUOTE_ALL)
+
+		for i in xrange(0,len(folders)):
+			folderName = folders[i].split('_')
+			if folderName[0] == 'train':
+				writer.writerow(['train', folders[i]])
+			elif folderName[0] == 'val':
+				writer.writerow(['val', folders[i]])
+			elif folderName[0] == 'test':
+				writer.writerow(['test', folders[i]])
 
 	# process the stored bagfiles and generate images in the desired directory
 	def generate_images(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		pathFrom = 'bagfiles', 
 		bagFile = '0', 
-		accumTime = 1000, 
+		accumTime = 1000,
 		imtype = 'temporal', 
 		expScale = 0.0001, 
 		expTime = 'us',
 		datasetFolder = 'images',
 		blur = False, 
-		eventRateTh = 0.1):
+		eventRateTh = 0.1,
+		imageSkip = 1):
 
 		# bagFile path
 		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
+		
+		if not os.path.exists(self.bagFilePath):
+			print self.bagFilePath + ' empty, skipping.'
+			return
 
 		# name of the folder in the project directory
 		self.datasetFolder = datasetFolder
 
 		# check if the final directory exists
 		imgDir = self.path + '/' + self.datasetFolder + '/' + bagFile + '/'
-		if not os.path.exists(imgDir):
-			os.makedirs(imgDir)
+		if os.path.exists(imgDir):
+			print imgDir + ' already exsists, skipping.'
+			return
+			
+		os.makedirs(imgDir)
 
 		# initialize the image
 		if imtype == 'normal': 
@@ -288,12 +311,12 @@ class dataset():
 		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
 		    for e in msg.events:
 
-		    	# event data
+		    # event data
 				ts = int(e.ts.to_nsec() / 1000.0)
 				p  = '1' if e.polarity else '0'
 
 				# update matrices
-				if ts / 1000 == imgCnt:
+				if ts / (1000 * imageSkip) == imgCnt:
 
 					if imtype == 'normal':
 
@@ -342,6 +365,7 @@ class dataset():
 
 					# counter
 					imgCnt += 1
+					filename = str(imgCnt) + '.png'
 
 					# generate images
 					if imtype == 'normal':
@@ -355,7 +379,7 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(accumEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
+						img.save(imgDir + filename)
 
 						# include this event
 						if p == '1': accumEvents[e.y, e.x] = 255
@@ -373,7 +397,7 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(accumEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
+						img.save(imgDir + filename)
 
 						# include this event
 						accumEvents[e.y, e.x] = 255
@@ -393,9 +417,9 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(accumEventsON)
-						img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
+						img.save(imgDir + 'ON/' + filename)
 						img = Image.fromarray(accumEventsOFF)
-						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+						img.save(imgDir + 'OFF/' + filename)
 
 						# include this event
 						if p == '1': timeEventsON[e.y, e.x]  = ts
@@ -416,7 +440,7 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(storeEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
+						img.save(imgDir + filename)
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
@@ -444,9 +468,9 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(storeEventsON)
-						img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
+						img.save(imgDir + 'ON/' + filename)
 						img = Image.fromarray(storeEventsOFF)
-						img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+						img.save(imgDir + 'OFF/' + filename)
 
 						# include this event
 						if p == '1':
@@ -472,7 +496,7 @@ class dataset():
 
 						# save the image
 						img = Image.fromarray(storeEvents)
-						img.save(imgDir + str(imgCnt) + '.png')
+						img.save(imgDir + filename)
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
@@ -481,6 +505,7 @@ class dataset():
 
 		# store final image
 		imgCnt += 1
+		filename = str(imgCnt) + '.png'
 
 		if imtype == 'normal':
 
@@ -493,7 +518,7 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(accumEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
+			img.save(imgDir + filename)
 
 		elif imtype == 'normal_mono':
 
@@ -506,7 +531,7 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(accumEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
+			img.save(imgDir + filename)
 
 		elif imtype == 'split_normal':
 
@@ -522,9 +547,9 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(accumEventsON)
-			img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
+			img.save(imgDir + 'ON/' + filename)
 			img = Image.fromarray(accumEventsOFF)
-			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+			img.save(imgDir + 'OFF/' + filename)
 
 		elif imtype == 'temporal':
 
@@ -541,7 +566,7 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(storeEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
+			img.save(imgDir + filename)
 
 		elif imtype == 'split_temporal':
 
@@ -563,9 +588,9 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(storeEventsON)
-			img.save(imgDir + 'ON/' + str(imgCnt) + '.png')
+			img.save(imgDir + 'ON/' + filename)
 			img = Image.fromarray(storeEventsOFF)
-			img.save(imgDir + 'OFF/' + str(imgCnt) + '.png')
+			img.save(imgDir + 'OFF/' + filename)
 
 		elif imtype == 'temp_mono':
 
@@ -581,19 +606,43 @@ class dataset():
 
 			# save the image
 			img = Image.fromarray(storeEvents)
-			img.save(imgDir + str(imgCnt) + '.png')
+			img.save(imgDir + filename)
 
 		# close the bagfile
 		bag.close()
-
-		# copy trajectory and ventral flow files
-		os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + imgDir)
-		os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
-
-
+		
+		if imageSkip == 1:
+			# copy trajectory and ventral flow files
+			os.system('cp ' + pathFrom + '/' + bagFile + '/trajectory.txt ' + imgDir)
+			os.system('cp ' + pathFrom + '/' + bagFile + '/ventral_flow.txt ' + imgDir)
+		else:
+			ifile  = open(pathFrom + '/' + bagFile + '/trajectory.txt', "r")
+			reader = csv.reader(ifile, delimiter=' ')
+			ofile  = open(imgDir+'/trajectory.txt', "wb")
+			writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
+			
+			i = 0
+			for row in reader:
+				if i % imageSkip == 0:
+					row[0] = i / imageSkip + 1
+					writer.writerow(row)
+				i = i + 1
+					
+			ifile  = open(pathFrom + '/' + bagFile + '/ventral_flow.txt', "r")
+			reader = csv.reader(ifile, delimiter=' ')
+			ofile  = open(imgDir+'/ventral_flow.txt', "wb")
+			writer = csv.writer(ofile, delimiter=' ', quoting=csv.QUOTE_NONE)
+			
+			i = 0
+			for row in reader:
+				if i % imageSkip == 0:
+					row[0] = i / imageSkip + 1
+					writer.writerow(row)
+				i = i + 1
+		
 	# process the stored bagfiles and generate images in the desired directory
 	def generate_images_cnst_variance(self, 
-		pathFrom = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles', 
+		pathFrom = 'bagfiles', 
 		bagFile = '0',
 		datasetFolder = 'images',
 		variance_obj = 0.05):

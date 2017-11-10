@@ -16,12 +16,13 @@ def generate_images(i):
 	data.generate_images(
 		pathFrom  = pathFrom, 
 		bagFile   = dirList[i], 
-		accumTime = 1000,           # delta_t
+		accumTime = accumTime,           # delta_t
 		imtype    = imtype, 
-		expScale  = 0.00005, 
+		expScale  = expScale,
 		expTime   = 'us',
 		datasetFolder = foldername, # name of the dataset
-		blur = False)
+		blur = False, 
+		imageSkip = 10)
 	print(dirList[i])
 
 
@@ -91,9 +92,9 @@ imtype:
 
 # initialize directories and class
 global data, pathTo, pathFrom, foldername
-pathTo     = '/media/fedepare/Datos/Ubuntu/Projects/NewDeepDVS' # directory to generate the dataset
-pathFrom   = '/media/fedepare/Datos/Ubuntu/Projects/bagfiles'   # directory with bagfiles
-foldername = 'deleteNOWWWWWWWW'                         # dataset name
+pathTo     = 'generated_datasets/images' # directory to generate the dataset
+pathFrom   = 'generated_datasets/fede'   # directory with bagfiles
+
 data = dataset(pathTo)
 
 # list with directories in pathFrom
@@ -102,9 +103,18 @@ dirList    = os.listdir(pathFrom)
 dirListLen = len(dirList)
 
 # initialize new directory if needed
-global imtype
-imtype = 'temp_mono'
+global imtype, expScale, accumTime
+imtype    = 'temporal'	# (normal, normal_mono, split_normal, temporal, split_temporal, temp_mono)
+expScale  = 0.00025	# used with temporal images
+accumTime = 1000	# used with normal images
+
+if imgtype == 'temporal' or imgtype == 'split_temporal' or imgtype == 'temp_mono':
+	foldername = imgtype + '_' + str(int(expScale*1000000))
+else:
+	foldername = imgtype + '_' + str(accumTime)
 
 # get the images in parallel from the bagfiles
-num_cores = multiprocessing.cpu_count()
+num_cores = max(multiprocessing.cpu_count()-1, 1)
 Parallel(n_jobs=num_cores)(delayed(generate_images)(i) for i in xrange(0, dirListLen))
+
+data.generate_data_set_csv(datasetFolder=pathTo+'/'+foldername)
