@@ -8,7 +8,7 @@ import numpy as np
 from math import fabs
 from math import floor
 from PIL import Image
-
+from keras.preprocessing.image import img_to_array, load_img
 
 # render Blender scene and simulate DVS
 def run_simulator(texture = 'roadmap'):
@@ -231,8 +231,9 @@ class dataset():
 		blur = False, 
 		eventRateTh = 0.1,
 		imageSkip = 1,
-		imgCnt = 0,
-		store_imgs = True):
+		imgCntStart = 0,
+		store_imgs = True,
+		num_imgs = -1):
 
 		# bagFile path
 		self.bagFilePath = pathFrom + '/' + bagFile + '/' + bagFile + '.bag'
@@ -308,6 +309,9 @@ class dataset():
 			timeEvents   = np.zeros((128, 128))
 			expMatrix    = np.full((128, 128), -expScale)
 	
+		imgCnt = imgCntStart
+		img_arrs = []
+		
 		# open the rosbag file and process the events
 		bag = rosbag.Bag(self.bagFilePath)
 		for topic, msg, t in bag.read_messages(topics=['/dvs/events']):
@@ -364,8 +368,7 @@ class dataset():
 						accumEvents[e.y, e.x] = 255
 
 				elif ts / (1000 * imageSkip) > imgCnt: # if the event under analysis belongs to a different image...
-					# counter
-					imgCnt += 1
+					
 					filename = str(imgCnt) + '.png'
 
 					# generate images
@@ -379,9 +382,7 @@ class dataset():
 						accumEvents[diffTime > accumTime] = 127
 
 						# save the image
-						img = Image.fromarray(accumEvents)
-						if store_imgs:
-							img.save(imgDir + filename)
+						img_arr = accumEvents
 
 						# include this event
 						if p == '1': accumEvents[e.y, e.x] = 255
@@ -397,10 +398,7 @@ class dataset():
 						# update image
 						accumEvents[diffTime > accumTime] = 0
 
-						# save the image
-						img = Image.fromarray(accumEvents)
-						if store_imgs:
-							img.save(imgDir + filename)
+						img_arr = accumEvents
 
 						# include this event
 						accumEvents[e.y, e.x] = 255
@@ -418,13 +416,9 @@ class dataset():
 						accumEventsON[diffTimeON <= accumTime]   = 255
 						accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
-						#TODO FIX
-						# save the image
-						img = Image.fromarray(accumEventsON)
-						img.save(imgDir + 'ON/' + filename)
-						img = Image.fromarray(accumEventsOFF)
-						img.save(imgDir + 'OFF/' + filename)
-
+						img_arr_on = diffTimeON
+						img_arr_off = diffTimeOFF
+						
 						# include this event
 						if p == '1': timeEventsON[e.y, e.x]  = ts
 						else:        timeEventsOFF[e.y, e.x] = ts
@@ -442,10 +436,7 @@ class dataset():
 						storeEvents  = np.add(np.multiply(relIntensity, expFactor), refIntensity)
 						storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-						# save the image
-						img = Image.fromarray(storeEvents)
-						if store_imgs:
-							img.save(imgDir + filename)
+						img_arr = storeEvents
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
@@ -471,12 +462,8 @@ class dataset():
 						storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
 						storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
-						# TODO FIX
-						# save the image
-						img = Image.fromarray(storeEventsON)
-						img.save(imgDir + 'ON/' + filename)
-						img = Image.fromarray(storeEventsOFF)
-						img.save(imgDir + 'OFF/' + filename)
+						img_arr_on = diffTimeON
+						img_arr_off = diffTimeOFF
 
 						# include this event
 						if p == '1':
@@ -500,21 +487,35 @@ class dataset():
 						storeEvents  = np.multiply(accumEvents, expFactor)
 						storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-						# save the image
-						img = Image.fromarray(storeEvents)
-						if store_imgs:
-							img.save(imgDir + filename)
+						img_arr = storeEvents
 
 						# include this event
 						if expTime == 'ms':   timeEvents[e.y, e.x] = ts/1000. # ms
 						elif expTime == 'us': timeEvents[e.y, e.x] = ts       # us
 						accumEvents[e.y, e.x] = 255
 					
-					bag.close()
-					return img
-
+					if store_imgs:
+						if imtype == 'split_temporal' or imtype == 'split_normal':
+							img = Image.fromarray(img_arr_on)
+							img.save(imgDir + 'ON/' + filename)
+							img = Image.fromarray(img_arr_off)
+							img.save(imgDir + 'OFF/' + filename)
+						else:
+							img = Image.fromarray(img_arr)
+							img.save(imgDir + filename)
+					
+					
+					img_arrs.append((img_arr/ 255.).astype(np.float32).reshape(128,128,1))
+					
+					imgCnt += 1
+					
+					if num_imgs > 0 and imgCnt >= imgCntStart + num_imgs:
+						# return when we have enough images
+						bag.close()
+						return img_arrs
+					
 		# store final image
-		imgCnt += 1
+
 		filename = str(imgCnt) + '.png'
 
 		if imtype == 'normal':
@@ -526,10 +527,7 @@ class dataset():
 			# update image
 			accumEvents[diffTime > accumTime] = 127
 
-			img = Image.fromarray(accumEvents)
-			if store_imgs:
-				# save the image
-				img.save(imgDir + filename)
+			img_arr = accumEvents
 
 		elif imtype == 'normal_mono':
 
@@ -540,10 +538,7 @@ class dataset():
 			# update image
 			accumEvents[diffTime > accumTime] = 0
 
-			img = Image.fromarray(accumEvents)
-			if store_imgs:
-				# save the image
-				img.save(imgDir + filename)
+			img_arr = accumEvents
 
 		elif imtype == 'split_normal':
 
@@ -557,14 +552,8 @@ class dataset():
 			accumEventsON[diffTimeON <= accumTime]   = 255
 			accumEventsOFF[diffTimeOFF <= accumTime] = 255
 
-			img_on = Image.fromarray(accumEventsON)
-			img_off = Image.fromarray(accumEventsOFF)
-			if store_imgs:
-				# save the image
-				img_on.save(imgDir + 'ON/' + filename)
-				img.save(imgDir + 'OFF/' + filename)
-				
-			img = [img_on, img_off]	# TODO DEBUG, should be stacked images
+			img_arr_on = accumEventsON
+			img_arr_off = accumEventsOFF
 
 		elif imtype == 'temporal':
 
@@ -579,10 +568,7 @@ class dataset():
 			storeEvents  = np.add(np.multiply(relIntensity, expFactor), refIntensity)
 			storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-			img = Image.fromarray(storeEvents)
-			if store_imgs:
-				# save the image
-				img.save(imgDir + filename)
+			img_arr = storeEvents
 
 		elif imtype == 'split_temporal':
 
@@ -602,16 +588,9 @@ class dataset():
 			storeEventsOFF = np.multiply(accumEventsOFF, expFactor)
 			storeEventsOFF = np.asarray(storeEventsOFF, dtype=np.uint8)
 
-			img_on = Image.fromarray(storeEventsON)
-			img_off = Image.fromarray(storeEventsOFF)
+			img_arr_on = storeEventsON
+			img_arr_off = storeEventsOFF
 			
-			if store_imgs:
-				# save the image
-				img_on.save(imgDir + 'ON/' + filename)
-				img_off.save(imgDir + 'OFF/' + filename)
-			
-			img = [img_on, img_off]	# TODO DEBUG, should be stacked images
-
 		elif imtype == 'temp_mono':
 
 			# reference time
@@ -624,10 +603,19 @@ class dataset():
 			storeEvents  = np.multiply(accumEvents, expFactor)
 			storeEvents  = np.asarray(storeEvents, dtype=np.uint8)
 
-			img = Image.fromarray(storeEvents)
-			if store_imgs:
-				# save the image
+			img_arr = storeEvents
+
+		if store_imgs:
+			if imtype == 'split_temporal' or imtype == 'split_normal':
+				img = Image.fromarray(img_arr_on)
+				img.save(imgDir + 'ON/' + filename)
+				img = Image.fromarray(img_arr_off)
+				img.save(imgDir + 'OFF/' + filename)
+			else:
+				img = Image.fromarray(img_arr)
 				img.save(imgDir + filename)
+		
+		img_arrs.append((img_arr/ 255.).astype(np.float32).reshape(128,128,1))
 
 		# close the bagfile
 		bag.close()
@@ -662,7 +650,8 @@ class dataset():
 						writer.writerow(row)
 					i = i + 1
 		
-		return img
+		print 'reached last image ' + str(imgCntStart) + ' ' + str(num_imgs) 
+		return img_arrs
 		
 	# process the stored bagfiles and generate images in the desired directory
 	def generate_images_cnst_variance(self, 
