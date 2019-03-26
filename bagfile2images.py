@@ -19,10 +19,9 @@ def generate_images(i):
 		accumTime = accumTime,           # delta_t
 		imtype    = imtype, 
 		expScale  = expScale,
-		expTime   = 'us',
 		datasetFolder = foldername, # name of the dataset
 		blur = False, 
-		imageSkip = 10)
+		imageResMs=10)
 	print(dirList[i])
 
 
@@ -100,12 +99,13 @@ data = dataset(pathTo)
 # list with directories in pathFrom
 global dirList, dirListLen
 dirList    = os.listdir(pathFrom)
+dirList = [d for d in os.listdir(pathFrom) if os.path.isdir(os.path.join(pathFrom, d))]
 dirListLen = len(dirList)
 
 # initialize new directory if needed
 global imtype, expScale, accumTime
 imtype    = 'temporal'	# (normal, normal_mono, split_normal, temporal, split_temporal, temp_mono)
-expScale  = 0.00025	# used with temporal images
+expScale  = 0.000025 # used with temporal images
 accumTime = 1000	# used with normal images
 
 if imtype == 'temporal' or imtype == 'split_temporal' or imtype == 'temp_mono':

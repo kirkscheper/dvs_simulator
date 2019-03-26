@@ -23,6 +23,8 @@ sudo apt-get update
 Install ROS
 sudo apt-get install ros-kinetic-ros-base
 
+sudo apt-get install rosbag
+
 ### Install ROS required packages
 
 Ros packages:
@@ -32,10 +34,14 @@ ros-kinetic-image-view
 ````
   
 Catkin tools package
-  'python-catkin-tools'
+```
+  python-catkin-tools
+```
   
 You can install all with this oneliner:
-  sudo apt-get install ros-kinetic-camera-info-manager ros-kinetic-image-view python-catkin-tools
+  ```sudo apt-get install ros-kinetic-camera-info-manager ros-kinetic-image-view python-catkin-tools python-rosbag
+python install Pillow rospkg catkin_pkg
+```
 
 ## Setup
 The first time you setup the simulator you should run the setup script

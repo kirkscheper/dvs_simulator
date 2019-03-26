@@ -13,8 +13,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "source $DIR/devel/setup.bash" >> ~/.bashrc
 
 #copy new scenes to simulator
-cp launch/* src/rpg_davis_simulator/launch
-cp datasets/scenes/* src/rpg_davis_simulator/datasets/scenes/
+cp -r launch/* src/rpg_davis_simulator/launch
+cp -r datasets/scenes/* src/rpg_davis_simulator/datasets/scenes/
 
 # set up OpenEXR
 sudo apt-get install libopenexr-dev
